@@ -1,3 +1,7 @@
+#ifndef SHM_MAXNUM
+#define SHM_MAXNUM 4
+#endif
+
 // Per-CPU state
 struct cpu {
 	uchar            apicid;     // Local APIC ID
@@ -32,6 +36,11 @@ struct context {
 	uint eip;
 };
 
+struct shmem {
+	char* name;
+	void* va;
+};
+
 enum procstate
 {
 	UNUSED,
@@ -57,6 +66,7 @@ struct proc {
 	struct file *     ofile[NOFILE]; // Open files
 	struct inode *    cwd;           // Current directory
 	char              name[16];      // Process name (debugging)
+	struct shmem	  shared_mem[SHM_MAXNUM]; //virtual addresses for the shared memory mapped into this proc
 };
 
 // Process memory is laid out contiguously, low addresses first:

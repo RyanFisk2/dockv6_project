@@ -23,6 +23,8 @@ int   getpid(void);
 char *sbrk(int);
 int   sleep(int);
 int   uptime(void);
+int   m_get(char *name);
+int   m_rem(char *name);
 
 // ulib.c
 int   stat(char *, struct stat *);
@@ -37,3 +39,5 @@ void *memset(void *, int, uint);
 void *malloc(uint);
 void  free(void *);
 int   atoi(const char *);
+char *shm_get(char *name);
+int   shm_rem(char *name);

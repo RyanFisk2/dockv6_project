@@ -6,9 +6,32 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
+#include "shmem.h"
+
+#ifndef SHM_MAXNUM
+#define SHM_MAXNUM 4
+#endif
 
 extern char data[]; // defined by kernel.ld
 pde_t *     kpgdir; // for use in scheduler()
+
+struct {
+	struct spinlock 	lock;
+	struct shared_mem	list[SHM_MAXNUM];
+}shm_list;
+
+void
+init_shm_list(void)
+{
+	//struct shared_mem *ptr;
+	initlock(&shm_list.lock, "shm_list");
+
+	acquire(&shm_list.lock);
+	memset(&shm_list.list,0,SHM_MAXNUM);
+	release(&shm_list.lock);
+}
+
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
@@ -329,9 +352,12 @@ uva2ka(pde_t *pgdir, char *uva)
 	return (char *)P2V(PTE_ADDR(*pte));
 }
 
-// Copy len bytes from p to user address va in page table pgdir.
-// Most useful when pgdir is not the current page table.
-// uva2ka ensures this only works for PTE_U pages.
+/* 
+ * Copy len bytes from p to user address va in page table pgdir.
+ * Most useful when pgdir is not the current page table.
+ * uva2ka ensures this only works for PTE_U pages.
+ */
+
 int
 copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
@@ -353,9 +379,140 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 	return 0;
 }
 
-// PAGEBREAK!
-// Blank page.
-// PAGEBREAK!
-// Blank page.
+int
+shm_get(char *name)
+{
+	struct shared_mem *ptr = (struct shared_mem*)0;
+	pde_t *pgdir;
+	struct proc *p = myproc();
+	uint a;
+	char *mem;
+	uint found = 0;
+	uint pa;
+	
+	// Tracks the first available spot in shm_list for a new page of shared memory 
+	struct{
+		uint set;
+		struct shared_mem *ptr;
+	}free_ptr;
+	free_ptr.set = 0;
+
+	/*
+	 * Acquire shm_list lock, iterate through array to find our shared memory with that name. 
+	 * If that memory is found, set found = 1 and break out of the loop. 
+	 * During this loop, we look for any un-allocated shared memory pages, 
+	 * and save it to be used if this is the first instance of this page name
+	 */
+	acquire(&shm_list.lock);
+	free_ptr.ptr = shm_list.list;
+	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
+		if (!(free_ptr.set || ptr->refcount)) {
+			free_ptr.ptr = ptr;
+			free_ptr.set = 1;		
+		}
+		if (!strncmp(ptr->name, name, sizeof(name))) {
+			found = 1;
+			break;
+		}
+	}
+	release(&shm_list.lock);
+
+	/* 
+	 * If a shared memory page is found with the same name 
+	 * map that page's physical address to our current process
+	 */
+	if(found) {
+		a = PGROUNDUP(p->sz);
+		pgdir = p->pgdir;
+		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
+			cprintf("shmem out of memory\n");
+			return -1;
+		}
+	}else{
+		/* 
+		 * This is creating a new page of shared memory, 
+		 * as this was the first instance of this name
+		 */
+		if (!free_ptr.set) {
+			return -1;
+		}
+		ptr = free_ptr.ptr;
+		
+		a = PGROUNDUP(p->sz);
+		pgdir = p->pgdir;
+		mem = kalloc();
+		
+		if (mem == 0) {
+			cprintf("shmem out of memory\n");
+			return -1;
+		}
+		memset(mem, 0, PGSIZE);
+		if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
+			cprintf("shmem out of memory (2)\n");
+			kfree(mem);
+			return -1;
+		}
+		pa = V2P(mem);
+
+		acquire(&shm_list.lock);
+		ptr->name = name;
+		ptr->pa = pa;
+		release(&shm_list.lock);
+	}
+	return 0;
+}
+
+int
+shm_rem(char *name)
+{
+	struct shared_mem *ptr = (struct shared_mem*)0;
+	
+	acquire(&shm_list.lock);
+	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
+		if (!strncmp(ptr->name, name, sizeof(name))) {
+			break;
+		}
+	}
+	release(&shm_list.lock);
+
+	if (!ptr) { /* no shared mem with identifier "name" exists */
+		return -1;
+	} else{ /* releasing existing shared mem */
+
+	}
+	return 0;
+}
+
+/*
+int
+allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
+{
+	char *mem;
+	uint  a;
+
+	if (newsz >= KERNBASE) return 0;
+	if (newsz < oldsz) return oldsz;
+
+	a = PGROUNDUP(oldsz);
+	for (; a < newsz; a += PGSIZE) {
+		mem = kalloc();
+		if (mem == 0) {
+			cprintf("allocuvm out of memory\n");
+			deallocuvm(pgdir, newsz, oldsz);
+			return 0;
+		}
+		memset(mem, 0, PGSIZE);
+		if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
+			cprintf("allocuvm out of memory (2)\n");
+			deallocuvm(pgdir, newsz, oldsz);
+			kfree(mem);
+			return 0;
+		}
+	}
+	return newsz;
+}
+*/
+
+
 // PAGEBREAK!
 // Blank page.
