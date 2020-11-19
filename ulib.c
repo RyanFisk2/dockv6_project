@@ -96,3 +96,19 @@ memmove(void *vdst, void *vsrc, int n)
 	while (n-- > 0) *dst++= *src++;
 	return vdst;
 }
+
+char*
+shm_get(char *name)
+{
+	if (m_get(name) < 0) return (char*)0;
+
+	return name;
+}
+
+int
+shm_rem(char *name)
+{
+	if (m_rem(name) < 0) return -1;
+
+	return 0;
+}
