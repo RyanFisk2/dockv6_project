@@ -22,6 +22,12 @@ struct {
 	struct pqueue_n queueArr[NBIN];
 } pqueue;
 
+#define PRIO_MIN 0
+#define PRIO_MAX 15
+
+#define PQ_HIGHEST_PRIORITY 0
+#define PQ_LOWEST_PRIORITY 15
+
 struct {
 	struct spinlock lock;
 	struct proc     proc[NPROC];
@@ -602,4 +608,35 @@ procdump(void)
 		}
 		cprintf("\n");
 	}
+}
+
+int
+prio_set(int pid, int priority)
+{
+	struct proc *p, *curr_proc, *temp_parent, *temp;
+
+	if (priority < 0 || priority > PRIO_MAX) return -1;
+
+	curr_proc = myproc();
+
+	acquire(&ptable.lock);
+	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+		if (p->pid == pid) break;
+	}
+	release(&ptable.lock);
+
+	temp = p;
+	while(1) {
+		temp_parent = temp->parent;
+		if (temp_parent == curr_proc) goto valid;
+		if (temp_parent == initproc) goto invalid; /* proc not in ancestry of curr_proc */
+		temp = temp_parent;
+	}
+
+	valid:
+	p->priority = priority;
+	return 0;
+
+	invalid:
+	return -1;
 }
