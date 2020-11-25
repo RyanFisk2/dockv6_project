@@ -6,13 +6,28 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "pqueue_n.h"
+
+#define PQN_HIGHEST_PRIORITY 0
+#define PRIO_MAX 15
+#define NBIN 16
+
+struct {
+	struct spinlock lock;
+	struct pqueue_node node[NPROC];
+} nodes;
+
+struct {
+	struct spinlock lock;
+	struct pqueue_n queueArr[NBIN];
+} pqueue;
 
 struct {
 	struct spinlock lock;
 	struct proc     proc[NPROC];
 } ptable;
 
-static struct proc *initproc;
+static struct proc *initproc = (struct proc*)0;
 
 int         nextpid = 1;
 extern void forkret(void);
@@ -21,9 +36,57 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 void
+pqueue_enqueue(struct proc *p, uint priority)
+{
+	struct pqueue_node *node;
+	struct pqueue_n    *bin;
+//	cprintf("in enqueue (lol alliteration)\n");
+	acquire(&nodes.lock);
+	for (node = &nodes.node[0]; node < &nodes.node[NPROC]; node++) {
+		if (!node->in_use) goto found;
+	}
+	/* shouldn't be reached -- can only be reached if already at NPROC procs, should have been caught in allocproc */
+	release(&nodes.lock);
+	return;
+
+	found:
+	node->in_use = 1;
+	node->proc = p;
+	node->priority = priority;
+	node->next = (struct pqueue_node*)0;
+
+	release(&nodes.lock);
+
+	acquire(&pqueue.lock);
+	bin = &pqueue.queueArr[priority];
+	if (bin->head == (struct pqueue_node*)0) {
+		bin->head = bin->tail = node;
+	} else{
+		bin->tail->next = node;
+		bin->tail = node;
+	}
+	bin->size++;
+	release(&pqueue.lock);
+}
+
+void
 pinit(void)
 {
+	struct pqueue_node *node;
+	struct pqueue_n    *bin;
+
 	initlock(&ptable.lock, "ptable");
+	initlock(&nodes.lock,"nodes");
+	initlock(&pqueue.lock,"pqueue");
+
+	for(node = &nodes.node[0]; node < &nodes.node[NPROC]; node++) {
+		node->in_use = 0;
+	}
+
+	for(bin = &pqueue.queueArr[0]; bin < &pqueue.queueArr[NBIN]; bin++) {
+		bin->head = bin->tail = (struct pqueue_node*)0;
+		bin->size = 0;
+	}
 }
 
 // Must be called with interrupts disabled
@@ -71,11 +134,11 @@ myproc(void)
 // state required to run in the kernel.
 // Otherwise return 0.
 static struct proc *
-allocproc(void)
+allocproc(uint priority)
 {
 	struct proc *p;
 	char *       sp;
-
+//	cprintf("allocproc\n");
 	acquire(&ptable.lock);
 
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -87,7 +150,8 @@ allocproc(void)
 found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
-
+	p->priority = priority;
+	
 	release(&ptable.lock);
 
 	// Allocate kernel stack.
@@ -111,6 +175,8 @@ found:
 	memset(p->context, 0, sizeof *p->context);
 	p->context->eip = (uint)forkret;
 
+	pqueue_enqueue(p,priority);
+
 	return p;
 }
 
@@ -122,8 +188,8 @@ userinit(void)
 	struct proc *p;
 	extern char  _binary_initcode_start[], _binary_initcode_size[];
 
-	p = allocproc();
-
+	p = allocproc(0);
+//	cprintf("init\n");
 	initproc = p;
 	if ((p->pgdir = setupkvm()) == 0) panic("userinit: out of memory?");
 	inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
@@ -179,9 +245,9 @@ fork(void)
 	int          i, pid;
 	struct proc *np;
 	struct proc *curproc = myproc();
-
+//	cprintf("fork\n");
 	// Allocate process.
-	if ((np = allocproc()) == 0) {
+	if ((np = allocproc(curproc->priority)) == 0) {
 		return -1;
 	}
 
@@ -254,6 +320,7 @@ exit(void)
 		}
 	}
 
+
 	// Jump into the scheduler, never to return.
 	curproc->state = ZOMBIE;
 	sched();
@@ -314,32 +381,62 @@ wait(void)
 void
 scheduler(void)
 {
-	struct proc *p;
+//	cprintf("sched\n");
+	struct proc *p = (struct proc*)0;
 	struct cpu * c = mycpu();
+	struct pqueue_n *bin;
+	struct pqueue_node *node;
 	c->proc        = 0;
 
 	for (;;) {
 		// Enable interrupts on this processor.
 		sti();
-
-		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
-		for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-			if (p->state != RUNNABLE) continue;
+		// Loop over process table looking for process to run.
+		if (initproc != (struct proc*)0) {
+			for (int i = 0; i < NBIN; i++) {
+				bin = &pqueue.queueArr[i];
+	//			cprintf("i:%d\n",i);
+				if (bin->size > 0) { /*current linked list is non-empty */
+					node = bin->head;
+					while (node != (struct pqueue_node*)0) {
+						if (node->proc->state != RUNNABLE) {
+							node = node->next;
+						} else{
+//							cprintf("node->proc->pid: %d\n",node->proc->pid);
+							c->proc = node->proc;
+//							cprintf("calling switchuvm\n");
+							switchuvm(node->proc);
+//							cprintf("back from switchuvm\n");
+							node->proc->state = RUNNING;
 
-			// Switch to chosen process.  It is the process's job
-			// to release ptable.lock and then reacquire it
-			// before jumping back to us.
-			c->proc = p;
-			switchuvm(p);
-			p->state = RUNNING;
+							swtch(&(c->scheduler), node->proc->context);
+							switchkvm();
 
-			swtch(&(c->scheduler), p->context);
-			switchkvm();
+							// Process is done running for now.
+							// It should have changed its p->state before coming back.
+							c->proc = 0;
+							node = node->next;
+						}
+					}
+				}
+			}
+		} else{
+			for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+				if (p->state != RUNNABLE) continue;
+				c->proc = p;
+//				cprintf("calling switchuvm\n");
+				switchuvm(p);
+//				cprintf("back from switchuvm\n");
+				p->state = RUNNING;
 
-			// Process is done running for now.
-			// It should have changed its p->state before coming back.
-			c->proc = 0;
+				swtch(&(c->scheduler), p->context);
+				switchkvm();
+
+				// Process is done running for now.
+				// It should have changed its p->state before coming back.
+				c->proc = 0;
+			}
 		}
 		release(&ptable.lock);
 	}
