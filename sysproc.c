@@ -85,3 +85,49 @@ sys_uptime(void)
 	release(&tickslock);
 	return xticks;
 }
+
+int sys_mutex_create(void){
+	char *name;
+	if(argstr(0, &name) < 0) return -1;
+	return mutex_create(name);
+}
+
+void sys_mutex_delete(void){
+	int muxid;
+
+	if (argint(0, &muxid) < 0) return;
+	mutex_delete(muxid);
+	return;
+}
+
+void sys_mutex_lock(void){
+	int muxid;
+
+	if (argint(0, &muxid) < 0) return;
+	mutex_lock(muxid);	
+	return;
+}
+
+void sys_mutex_unlock(void){
+	int muxid;
+
+	if (argint(0, &muxid) < 0) return;
+	mutex_unlock(muxid);
+	return;
+}
+
+void sys_cv_wait(void){
+	int muxid;
+
+	if (argint(0, &muxid) < 0) return;
+	cv_wait(muxid);
+	return;
+}
+
+void sys_cv_signal(void){
+	int muxid;
+
+	if (argint(0, &muxid) < 0) return;
+	cv_signal(muxid);
+	return;
+}

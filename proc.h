@@ -32,6 +32,14 @@ struct context {
 	uint eip;
 };
 
+struct mutex {
+	uint 			locked;   // Is the lock held? 0 if not, 1 if it is
+	int	    		isAlloc; // 0 if false, 1 if true
+	int		    	pid; 	 // pid of who locked this lock
+    char*           name;    // name of lock
+	int				refcount;
+};
+
 enum procstate
 {
 	UNUSED,
@@ -57,6 +65,7 @@ struct proc {
 	struct file *     ofile[NOFILE]; // Open files
 	struct inode *    cwd;           // Current directory
 	char              name[16];      // Process name (debugging)
+	struct mutex *	  mutex[MUX_MAXNUM];// Which locks this process has access to
 };
 
 // Process memory is laid out contiguously, low addresses first:

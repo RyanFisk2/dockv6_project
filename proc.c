@@ -12,6 +12,11 @@ struct {
 	struct proc     proc[NPROC];
 } ptable;
 
+struct {
+	struct spinlock lock;
+	struct mutex 	mux[MUX_MAXNUM];
+} mtable;
+
 static struct proc *initproc;
 
 int         nextpid = 1;
@@ -24,6 +29,7 @@ void
 pinit(void)
 {
 	initlock(&ptable.lock, "ptable");
+	initlock(&mtable.lock, "mtable");
 }
 
 // Must be called with interrupts disabled
@@ -87,8 +93,10 @@ allocproc(void)
 found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
-
 	release(&ptable.lock);
+
+	// Initialize proc's local mutex array
+	memset((void*)p->mutex,0,sizeof(p->mutex));
 
 	// Allocate kernel stack.
 	if ((p->kstack = kalloc()) == 0) {
@@ -505,4 +513,138 @@ procdump(void)
 		}
 		cprintf("\n");
 	}
+}
+
+int mutex_create(char *name){
+	struct proc *p = myproc();
+	struct mutex *m;
+	int muxid = -1;
+	struct mutex *unallocated = (struct mutex*)0;
+
+	/*
+	 * Go through mtable. Save the first unallocated mutex if we do not
+	 * find one with the same name as *name. If we find one with the same name,
+	 * goto addtoProc, as all we need to do is give our current process access.
+	 * Otherwise, we need to set up a new mutex with the unallocated variable.
+	*/ 
+	acquire(&mtable.lock);
+	for(m = mtable.mux; m < &mtable.mux[MUX_MAXNUM]; m++){
+		if(m->isAlloc == 0 && unallocated == (struct mutex*)0){
+			unallocated = m;
+		}else if(strncmp(name, m->name, sizeof(name)) == 0){
+			goto addtoProc;
+		}
+	}
+	// That lock name was not found, so we need to create it.
+	if(unallocated != (struct mutex*)0){
+		goto setupMutex;
+	}
+
+	// We didn't have space to make another lock, so return -1.
+	release(&mtable.lock);
+	return -1;
+
+addtoProc:
+
+	// Save the first possible index we can place our mutex in our process struct
+	for(int i = 0; i < MUX_MAXNUM; i++){
+		if(p->mutex[i] == (struct mutex*)0 && muxid == -1){
+			muxid = i;
+		}else if(p->mutex[i] == m){
+			release(&mtable.lock);
+			return -1;
+		}
+	}
+	
+	// If we are able to allocate the process, do so. Otherwise, return -1.
+	if(muxid != -1){
+		p->mutex[muxid] = m;
+		m->refcount++;
+		release(&mtable.lock);
+		return muxid;
+	}else{
+		release(&mtable.lock);
+		return -1;
+	}
+	
+setupMutex:
+	unallocated->name = name;
+	unallocated->isAlloc = 1;
+	unallocated->refcount = 1;
+
+	for(int i = 0; i < MUX_MAXNUM; i++){
+		if(p->mutex[i] == (struct mutex*)0){
+			muxid = i;
+			break;
+		}
+	}
+
+	// If we have space in the process to save the lock, save it, otherwise return -1.
+	if(muxid != -1){
+		p->mutex[muxid] = unallocated;
+		release(&mtable.lock);
+		return muxid;
+	}else{
+		release(&mtable.lock);
+		return -1;
+	}
+
+		
+	return muxid;
+}
+
+int
+mutex_holding(struct mutex *mux)
+{
+	return mux->locked && mux->pid == myproc()->pid;
+}
+
+void mutex_delete(int muxid){
+	return;
+}
+void mutex_unlock(int muxid){
+	struct proc *curr_proc = myproc();
+	struct mutex *mux = curr_proc->mutex[muxid];
+
+	if(!mux || !mutex_holding(mux)) return;
+
+	pushcli();
+
+	asm volatile("movl $0, %0" : "+m"(mux->locked) :);
+
+	popcli();
+
+	__sync_synchronize();
+
+	return;
+}
+void mutex_lock(int muxid){
+	struct proc *curr_proc = myproc();
+	struct mutex *mux = curr_proc->mutex[muxid];
+
+	
+	/* if don't have access to mutex (i.e. curr_proc->mutex[muxid]==0) or already have lock, return */
+	if(!mux || mutex_holding(curr_proc->mutex[muxid])) {
+		return;
+	}
+
+	while (1) {
+		pushcli();
+		if (xchg(&mux->locked,1) == 0) break;
+		popcli();
+		yield();
+	}
+
+	__sync_synchronize();
+
+	mux->pid = curr_proc->pid;
+		
+	popcli();
+	return;
+}
+void cv_wait(int muxid){
+	return;
+}
+void cv_signal(int muxid){
+	return;
 }
