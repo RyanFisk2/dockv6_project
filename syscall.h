@@ -22,3 +22,6 @@
 #define SYS_close 21
 #define SYS_m_get 22
 #define SYS_m_rem 23
+#define SYS_cm_create_and_enter 24
+#define SYS_cm_setroot 25
+#define SYS_cm_maxproc 26

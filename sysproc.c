@@ -107,3 +107,36 @@ sys_m_rem(void)
 
 	return shm_rem(name);
 }
+
+int
+sys_cm_create_and_enter(void)
+{
+	/* TODO: might need params here */
+	return cm_create_and_enter();
+}
+
+int
+sys_cm_setroot(void)
+{
+	char* path;
+	int path_len;
+
+	if((argstr(0, &path) < 0) || (argint(1, &path_len) < 0))
+	{
+		return -1;
+	}
+
+	return cm_setroot(path, path_len);
+}
+
+int
+sys_cm_maxproc(void)
+{
+	int nproc;
+
+	if(argint(0, &nproc) < 0){
+		return -1;
+	}
+
+	return cm_maxproc(nproc);
+}

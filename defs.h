@@ -120,6 +120,9 @@ void         userinit(void);
 int          wait(void);
 void         wakeup(void *);
 void         yield(void);
+int          cm_create_and_enter(void);
+int          cm_setroot(char* path, int path_len);
+int          cm_maxproc(int nproc);
 
 // swtch.S
 void swtch(struct context **, struct context *);

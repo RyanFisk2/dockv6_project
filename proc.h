@@ -67,6 +67,7 @@ struct proc {
 	struct inode *    cwd;           // Current directory
 	char              name[16];      // Process name (debugging)
 	struct shmem	  shared_mem[SHM_MAXNUM]; //virtual addresses for the shared memory mapped into this proc
+	int		  zone_id;	//holds the container id of the container this proc is in (0 == global or CM, >1 == in a container)
 };
 
 // Process memory is laid out contiguously, low addresses first:

@@ -506,3 +506,32 @@ procdump(void)
 		cprintf("\n");
 	}
 }
+
+/* BELOW ARE THE CONTAINER MANAGER SYS CALLS */
+
+int
+cm_create_and_enter(void)
+{
+	cprintf("creating and entering container\n");
+	return 1;
+}
+
+int
+cm_setroot(char* path, int path_len)
+{
+	cprintf("Setting root to %s with length %d\n", path, path_len);
+	return 1;
+}
+
+int
+cm_maxproc(int nproc)
+{
+	if(nproc >= NPROC){
+		cprintf("ERR: cannot give more than NPROC to one container\n");
+		return 0;
+	}
+
+	cprintf("assigning %d as max procs for this container\n", nproc);
+
+	return 1;
+}
