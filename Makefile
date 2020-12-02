@@ -175,6 +175,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_dockv6\
+	_dockv6_init\
 
 fs.img: mkfs README container_config.json $(UPROGS)
 	./mkfs fs.img README container_config.json $(UPROGS)

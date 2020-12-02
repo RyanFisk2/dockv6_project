@@ -102,6 +102,7 @@ extern int sys_m_rem(void);
 extern int sys_cm_create_and_enter(void);
 extern int sys_cm_setroot(void);
 extern int sys_cm_maxproc(void);
+extern int sys_copy_file(void);
 
 static int (*syscalls[])(void) = {
   [SYS_fork] sys_fork,   [SYS_exit] sys_exit,     [SYS_wait] sys_wait,     [SYS_pipe] sys_pipe,
@@ -110,7 +111,7 @@ static int (*syscalls[])(void) = {
   [SYS_sleep] sys_sleep, [SYS_uptime] sys_uptime, [SYS_open] sys_open,     [SYS_write] sys_write,
   [SYS_mknod] sys_mknod, [SYS_unlink] sys_unlink, [SYS_link] sys_link,     [SYS_mkdir] sys_mkdir,
   [SYS_close] sys_close, [SYS_m_get] sys_m_get, [SYS_m_rem] sys_m_rem, [SYS_cm_create_and_enter] sys_cm_create_and_enter, 
-  [SYS_cm_setroot] sys_cm_setroot, [SYS_cm_maxproc] sys_cm_maxproc
+  [SYS_cm_setroot] sys_cm_setroot, [SYS_cm_maxproc] sys_cm_maxproc, [SYS_copy_file] sys_copy_file
 };
 
 void

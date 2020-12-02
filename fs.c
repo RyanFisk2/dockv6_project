@@ -643,3 +643,23 @@ nameiparent(char *path, char *name)
 {
 	return namex(path, 1, name);
 }
+
+/*
+ * used by dockv6_init to copy binary files to the container directory
+ */
+int
+copy_file(char *dir, char *file)
+{
+	struct inode *dir_inode;
+	struct inode *file_inode;
+	
+	dir_inode = namei(dir);
+	file_inode = namei(file);
+
+	if(dirlink(dir_inode, file, file_inode->inum) < 0)
+	{
+		cprintf("dirlink fail\n");
+		return 0;
+	}
+	return 1;
+}

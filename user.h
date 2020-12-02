@@ -28,6 +28,7 @@ int   m_rem(char *name);
 int   cm_create_and_enter(void);
 int   cm_setroot(char* path, int path_len);
 int   cm_maxproc(int nproc);
+int   copy_file(char* dir_path, char* file);
 
 // ulib.c
 int   stat(char *, struct stat *);

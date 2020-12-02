@@ -409,3 +409,20 @@ sys_pipe(void)
 	fd[1] = fd1;
 	return 0;
 }
+
+int
+sys_copy_file(void)
+{
+	char *dir_path;
+	char *file;
+
+	if((argstr(0, &dir_path) < 0) || (argstr(1, &file) < 0)) return 0;
+
+	begin_op();
+	
+	int result = copy_file(dir_path, file);
+
+	end_op();
+
+	return result;
+}

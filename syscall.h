@@ -25,3 +25,4 @@
 #define SYS_cm_create_and_enter 24
 #define SYS_cm_setroot 25
 #define SYS_cm_maxproc 26
+#define SYS_copy_file 27
