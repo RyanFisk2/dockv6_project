@@ -402,8 +402,9 @@ scheduler(void)
 		if (initproc != (struct proc*)0) {
 			for (int i = 0; i < NBIN; i++) {
 				bin = &pqueue.queueArr[i];
-	//			cprintf("i:%d\n",i);
+//				cprintf("i:%d\n",i);
 				if (bin->size > 0) { /*current linked list is non-empty */
+//					if (i != 0) cprintf("bin %d\n",i);
 					node = bin->head;
 					while (node != (struct pqueue_node*)0) {
 						if (node->proc->state != RUNNABLE) {
@@ -614,9 +615,10 @@ int
 prio_set(int pid, int priority)
 {
 	struct proc *p, *curr_proc, *temp_parent, *temp;
+	int old_prio;
 
 	if (priority < 0 || priority > PRIO_MAX) return -1;
-
+//	cprintf("in prio set: curprocpid=%d, setting prio for pid %d\n",myproc()->pid,pid);
 	curr_proc = myproc();
 
 	acquire(&ptable.lock);
@@ -626,6 +628,7 @@ prio_set(int pid, int priority)
 	release(&ptable.lock);
 
 	temp = p;
+	if (pid == curr_proc->pid) goto valid;
 	while(1) {
 		temp_parent = temp->parent;
 		if (temp_parent == curr_proc) goto valid;
@@ -634,7 +637,39 @@ prio_set(int pid, int priority)
 	}
 
 	valid:
+	old_prio = p->priority;
 	p->priority = priority;
+//	cprintf("oldprio = %d newprio=%d\n",old_prio,priority);
+	acquire(&pqueue.lock);
+	struct pqueue_n *old_bin = &pqueue.queueArr[old_prio];
+	struct pqueue_n *new_bin = &pqueue.queueArr[priority];
+	struct pqueue_node *ptr = old_bin->head;
+	struct pqueue_node *cur_node = 0;
+	if (ptr->proc->pid == pid) {
+//		cprintf("at head\n");
+		old_bin->head = old_bin->head->next;
+		cur_node = ptr;
+	} else{
+		while (ptr->next != (struct pqueue_node*)0) {
+			if (ptr->next->proc->pid == pid) {
+//				cprintf("found\n");
+				cur_node = ptr->next;
+				break;
+			}
+			ptr = ptr->next;
+		}
+		ptr->next = ptr->next->next;
+	}
+	if (cur_node->proc->pid != pid) cprintf("bad. ptr pid: %d\n",ptr->proc->pid);
+	if (new_bin->head == (struct pqueue_node*)0) {
+		new_bin->head = new_bin->tail = cur_node;
+	} else{
+		new_bin->tail->next = cur_node;
+		new_bin->tail = cur_node;
+	}
+	old_bin->size--;
+	new_bin->size++;
+	release(&pqueue.lock);
 	return 0;
 
 	invalid:
