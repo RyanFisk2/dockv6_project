@@ -38,7 +38,7 @@ struct context {
 
 struct shmem {
 	char* name;
-	void* va;
+	char* va;
 };
 
 enum procstate

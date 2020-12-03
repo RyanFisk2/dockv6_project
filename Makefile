@@ -176,6 +176,7 @@ UPROGS=\
 	_zombie\
 	_dockv6\
 	_dockv6_init\
+	_shmem_test\
 
 fs.img: mkfs README container_config.json $(UPROGS)
 	./mkfs fs.img README container_config.json $(UPROGS)
