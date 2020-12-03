@@ -37,7 +37,7 @@ struct context {
 };
 
 struct shmem {
-	char* name;
+	char name[16];
 	char* va;
 };
 

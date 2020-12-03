@@ -4,8 +4,12 @@
 int
 main(void)
 {
-        char *shmem_addr, *shmem_addr2 = (char*)2000;
+        char *shmem_addr;//, *shmem_addr2 = (char*)2000;
 
+        shmem_addr = shm_get("hi");
+        *shmem_addr = 1;
+        exit();
+/*
         int pid = fork();
         if (pid != 0 ) {
                 shmem_addr = shm_get("hi");
@@ -20,4 +24,5 @@ main(void)
                 printf(1,"in child, shmem_addr=%d *shmem_addr=%d\n",shmem_addr,*shmem_addr);
                 exit();
         }
+        */
 }

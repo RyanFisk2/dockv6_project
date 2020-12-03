@@ -28,7 +28,7 @@ init_shm_list(void)
 	initlock(&shm_list.lock, "shm_list");
 
 	acquire(&shm_list.lock);
-	memset(&shm_list.list,0,SHM_MAXNUM);
+	memset(&shm_list.list->refcount,0,SHM_MAXNUM);
 	release(&shm_list.lock);
 }
 
@@ -392,7 +392,7 @@ shm_get(char *name, char **ret_addr)
 	uint found = 0;
 	uint pa;
 
-//	cprintf("start shm_get: sz=%d\n",p->sz);
+	cprintf("start shm_get: sz=%d\n",p->sz);
 
 	ret_val = (char*)p->sz; /* shmem starting addr will b last address in VAS before page is mapped */
 	
@@ -411,7 +411,7 @@ shm_get(char *name, char **ret_addr)
 		if (strncmp(cur_name,name,sizeof(name)) == 0) {cprintf("already have this page\n"); return -1;} /* proc already holds shmem */
 	}
 
-	if (new_shmem == (struct shmem*)0) return -1; /* proc at SHM_MAXNUM shmem pages */
+//	if (new_shmem == (struct shmem*)0) return -1; /* proc at SHM_MAXNUM shmem pages */
 
 	/*
 	 * Acquire shm_list lock, iterate through array to find our shared memory with that name. 
@@ -426,7 +426,9 @@ shm_get(char *name, char **ret_addr)
 			free_ptr.ptr = ptr;
 			free_ptr.set = 1;		
 		}
-//		cprintf("name: %s\n",ptr->name);
+		
+//		safestrcpy(cur_name,ptr->name,sizeof(ptr->name));
+		cprintf("name: %s, refcount: %d\n",ptr->name,ptr->refcount);
 		if (strncmp(ptr->name, name, sizeof(name)) == 0) {
 			found = 1;
 			break;
@@ -439,7 +441,7 @@ shm_get(char *name, char **ret_addr)
 	 * map that page's physical address to our current process
 	 */
 	if(found) {
-//		cprintf("getting existing page\n");
+		cprintf("getting existing page\n");
 		a = PGROUNDUP(p->sz);
 		ret_val = (char*)a;
 		pgdir = p->pgdir;
@@ -475,17 +477,22 @@ shm_get(char *name, char **ret_addr)
 		pa = V2P(mem);
 
 		acquire(&shm_list.lock);
-		memmove(&ptr->name,&name,sizeof(name));
+//		memmove(&ptr->name,&name,sizeof(name));
 //		strncpy(ptr->name,name,sizeof(name));
 //		ptr->name = name;
 //		cprintf("ptr->name set to: %s\n",ptr->name);
+		strncpy(ptr->name,name,strlen(name));
+		cprintf("set name to %s strlen(name)=%d\n",ptr->name,strlen(name));
 		ptr->pa = pa;
 		release(&shm_list.lock);
 	}
 	p->sz = p->sz + PGSIZE;
-	new_shmem->name = name;
+//	new_shmem->name = name;
+	
+	strncpy(new_shmem->name,name,strlen(name));
+	
 	new_shmem->va = ret_val;
-//	cprintf("ptr->pa: %d\n",ptr->pa);
+	cprintf("ptr->pa: %d\n",ptr->pa);
 //	cprintf("retval: %p, new_shmem->va: %p\n",ret_val,new_shmem->va);
 	ptr->refcount++;
 	*ret_addr = ret_val;
@@ -522,7 +529,7 @@ shm_rem(char *name)
 		
 		if (proc_ptr == (struct shmem*)0) return -1; /* curproc does not hold shmem w/ this name */
 		if (ptr->refcount == 1) { /* curproc is only proc holding shmem */
-			ptr->name = (char*)0;
+//			ptr->name = (char*)0;
 			ptr->pa = -1;
 		}
 //		uint old_sz = cur_proc->sz;
