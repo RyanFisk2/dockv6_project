@@ -512,14 +512,7 @@ procdump(void)
 int
 cm_create_and_enter(void)
 {
-	cprintf("creating and entering container\n");
-	return 1;
-}
-
-int
-cm_setroot(char* path, int path_len)
-{
-	cprintf("Setting root to %s with length %d\n", path, path_len);
+	cprintf("create and enter\n");
 	return 1;
 }
 

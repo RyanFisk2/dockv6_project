@@ -411,6 +411,26 @@ sys_pipe(void)
 }
 
 int
+sys_cm_setroot(void)
+{
+	char* path;
+	int path_len, result;
+
+	begin_op();
+
+	if((argstr(0, &path) < 0) || (argint(1, &path_len) < 0))
+	{
+		return -1;
+	}
+
+	result = cm_setroot(path, path_len);
+
+	end_op();
+
+	return result;
+}
+
+int
 sys_copy_file(void)
 {
 	char *dir_path;

@@ -116,20 +116,6 @@ sys_cm_create_and_enter(void)
 }
 
 int
-sys_cm_setroot(void)
-{
-	char* path;
-	int path_len;
-
-	if((argstr(0, &path) < 0) || (argint(1, &path_len) < 0))
-	{
-		return -1;
-	}
-
-	return cm_setroot(path, path_len);
-}
-
-int
 sys_cm_maxproc(void)
 {
 	int nproc;

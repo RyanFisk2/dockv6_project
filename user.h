@@ -36,6 +36,7 @@ char *strcpy(char *, char *);
 void *memmove(void *, void *, int);
 char *strchr(const char *, char c);
 int   strcmp(const char *, const char *);
+int   strncmp (const char*, const char*, uint n);
 void  printf(int, char *, ...);
 char *gets(char *, int max);
 uint  strlen(char *);
