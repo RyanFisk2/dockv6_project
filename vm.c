@@ -380,15 +380,21 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 int
-shm_get(char *name)
+shm_get(char *name, char **ret_addr)
 {
 	struct shared_mem *ptr = (struct shared_mem*)0;
+	struct shmem *new_shmem = (struct shmem*)0;
+	char *cur_name;
 	pde_t *pgdir;
 	struct proc *p = myproc();
 	uint a;
-	char *mem;
+	char *mem, *ret_val;
 	uint found = 0;
 	uint pa;
+
+//	cprintf("start shm_get: sz=%d\n",p->sz);
+
+	ret_val = (char*)p->sz; /* shmem starting addr will b last address in VAS before page is mapped */
 	
 	// Tracks the first available spot in shm_list for a new page of shared memory 
 	struct{
@@ -396,6 +402,16 @@ shm_get(char *name)
 		struct shared_mem *ptr;
 	}free_ptr;
 	free_ptr.set = 0;
+
+	if (strncmp(name,(char*)0,sizeof(name)) == 0) return -1; /* can't have null name */
+
+	for (int i = 0;  i < SHM_MAXNUM; i++) {
+		cur_name = p->shared_mem[i].name;
+		if (strncmp(cur_name,(char*)0,sizeof((char*)0)) == 0) new_shmem = &p->shared_mem[i];
+		if (strncmp(cur_name,name,sizeof(name)) == 0) {cprintf("already have this page\n"); return -1;} /* proc already holds shmem */
+	}
+
+	if (new_shmem == (struct shmem*)0) return -1; /* proc at SHM_MAXNUM shmem pages */
 
 	/*
 	 * Acquire shm_list lock, iterate through array to find our shared memory with that name. 
@@ -410,7 +426,8 @@ shm_get(char *name)
 			free_ptr.ptr = ptr;
 			free_ptr.set = 1;		
 		}
-		if (!strncmp(ptr->name, name, sizeof(name))) {
+//		cprintf("name: %s\n",ptr->name);
+		if (strncmp(ptr->name, name, sizeof(name)) == 0) {
 			found = 1;
 			break;
 		}
@@ -422,7 +439,9 @@ shm_get(char *name)
 	 * map that page's physical address to our current process
 	 */
 	if(found) {
+//		cprintf("getting existing page\n");
 		a = PGROUNDUP(p->sz);
+		ret_val = (char*)a;
 		pgdir = p->pgdir;
 		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
 			cprintf("shmem out of memory\n");
@@ -439,6 +458,7 @@ shm_get(char *name)
 		ptr = free_ptr.ptr;
 		
 		a = PGROUNDUP(p->sz);
+		ret_val = (char*)a;
 		pgdir = p->pgdir;
 		mem = kalloc();
 		
@@ -455,10 +475,21 @@ shm_get(char *name)
 		pa = V2P(mem);
 
 		acquire(&shm_list.lock);
-		ptr->name = name;
+		memmove(&ptr->name,&name,sizeof(name));
+//		strncpy(ptr->name,name,sizeof(name));
+//		ptr->name = name;
+//		cprintf("ptr->name set to: %s\n",ptr->name);
 		ptr->pa = pa;
 		release(&shm_list.lock);
 	}
+	p->sz = p->sz + PGSIZE;
+	new_shmem->name = name;
+	new_shmem->va = ret_val;
+//	cprintf("ptr->pa: %d\n",ptr->pa);
+//	cprintf("retval: %p, new_shmem->va: %p\n",ret_val,new_shmem->va);
+	ptr->refcount++;
+	*ret_addr = ret_val;
+//	cprintf("end shm_get: sz=%d\n",p->sz);
 	return 0;
 }
 
@@ -466,6 +497,9 @@ int
 shm_rem(char *name)
 {
 	struct shared_mem *ptr = (struct shared_mem*)0;
+	struct shmem *proc_ptr = (struct shmem*)0;
+	struct proc *cur_proc = myproc();
+	char *cur_name;
 	
 	acquire(&shm_list.lock);
 	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
@@ -478,7 +512,34 @@ shm_rem(char *name)
 	if (!ptr) { /* no shared mem with identifier "name" exists */
 		return -1;
 	} else{ /* releasing existing shared mem */
-
+		for (int i = 0; i < SHM_MAXNUM; i++) {
+			cur_name = cur_proc->shared_mem[i].name;
+			if (strncmp(cur_name,name,sizeof(name)) == 0) {
+				proc_ptr = &cur_proc->shared_mem[i];
+				break;
+			}
+		}
+		
+		if (proc_ptr == (struct shmem*)0) return -1; /* curproc does not hold shmem w/ this name */
+		if (ptr->refcount == 1) { /* curproc is only proc holding shmem */
+			ptr->name = (char*)0;
+			ptr->pa = -1;
+		}
+//		uint old_sz = cur_proc->sz;
+//		uint new_sz = (uint)proc_ptr->va;
+		pde_t *pte = walkpgdir(cur_proc->pgdir,proc_ptr->va,0);
+		uint pa = PTE_ADDR(*pte);
+		char *v = P2V(pa);
+		kfree(v);
+		*pte = 0;
+		memset(&proc_ptr->name,0,sizeof(proc_ptr->name));
+//		proc_ptr->name = (char*)0;
+		proc_ptr->va = (char*)-1;
+		ptr->refcount--;
+		cur_proc->sz -= PGSIZE;
+//		deallocuvm(cur_proc->pgdir,old_sz,new_sz);
+//		cprintf("dealloced page: sz was %d now is %d\n",old_sz,new_sz);
+//		cprintf("refcnt = %d\n",ptr->refcount);
 	}
 	return 0;
 }

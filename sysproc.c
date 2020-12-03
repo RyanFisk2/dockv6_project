@@ -89,11 +89,11 @@ sys_uptime(void)
 int
 sys_m_get(void)
 {
-	char *name;
+	char *name, **ret_addr;
 
-	if (argptr(0,(char**)&name,sizeof(name)) < 0) return -1;
+	if (argptr(0,(char**)&name,sizeof(name)) < 0 || argptr(1,(char**)&ret_addr,sizeof(ret_addr)) < 0) return -1;
 
-	if (shm_get(name) < 0) return -1;
+	if (shm_get(name,ret_addr) < 0) return -1;
 
 	return 0;
 }

@@ -88,6 +88,8 @@ found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
 
+	memset(p->shared_mem,0,sizeof(p->shared_mem));
+
 	release(&ptable.lock);
 
 	// Allocate kernel stack.
