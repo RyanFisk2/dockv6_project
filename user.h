@@ -23,7 +23,7 @@ int   getpid(void);
 char *sbrk(int);
 int   sleep(int);
 int   uptime(void);
-int   m_get(char *name, char **ret_addr);
+int   m_get(char *name);
 int   m_rem(char *name);
 
 // ulib.c

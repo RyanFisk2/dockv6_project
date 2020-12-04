@@ -100,11 +100,11 @@ memmove(void *vdst, void *vsrc, int n)
 char*
 shm_get(char *name)
 {
-	char *ret_val;
+	int ret_val;
 
-	if (m_get(name,&ret_val) < 0) return (char*)0;
+	if ( (ret_val = m_get(name)) < 0) return (char*)0;
 
-	return ret_val;
+	return (char*) ret_val;
 }
 
 int

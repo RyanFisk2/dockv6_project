@@ -380,7 +380,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 int
-shm_get(char *name, char **ret_addr)
+shm_get(char *name)
 {
 	struct shared_mem *ptr = (struct shared_mem*)0;
 	struct shmem *new_shmem = (struct shmem*)0;
@@ -388,13 +388,14 @@ shm_get(char *name, char **ret_addr)
 	pde_t *pgdir;
 	struct proc *p = myproc();
 	uint a;
-	char *mem, *ret_val;
+	char *mem;
+	int ret_val;
 	uint found = 0;
 	uint pa;
 
-	cprintf("start shm_get: sz=%d\n",p->sz);
+//	cprintf("start shm_get: sz=%d\n",p->sz);
 
-	ret_val = (char*)p->sz; /* shmem starting addr will b last address in VAS before page is mapped */
+	ret_val = p->sz; /* shmem starting addr will b last address in VAS before page is mapped */
 	
 	// Tracks the first available spot in shm_list for a new page of shared memory 
 	struct{
@@ -428,7 +429,7 @@ shm_get(char *name, char **ret_addr)
 		}
 		
 //		safestrcpy(cur_name,ptr->name,sizeof(ptr->name));
-		cprintf("name: %s, refcount: %d\n",ptr->name,ptr->refcount);
+//		cprintf("name: %s, refcount: %d\n",ptr->name,ptr->refcount);
 		if (strncmp(ptr->name, name, sizeof(name)) == 0) {
 			found = 1;
 			break;
@@ -441,9 +442,9 @@ shm_get(char *name, char **ret_addr)
 	 * map that page's physical address to our current process
 	 */
 	if(found) {
-		cprintf("getting existing page\n");
+//		cprintf("getting existing page\n");
 		a = PGROUNDUP(p->sz);
-		ret_val = (char*)a;
+//		ret_val = (char*)a;
 		pgdir = p->pgdir;
 		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
 			cprintf("shmem out of memory\n");
@@ -460,7 +461,7 @@ shm_get(char *name, char **ret_addr)
 		ptr = free_ptr.ptr;
 		
 		a = PGROUNDUP(p->sz);
-		ret_val = (char*)a;
+//		ret_val = (char*)a;
 		pgdir = p->pgdir;
 		mem = kalloc();
 		
@@ -482,7 +483,7 @@ shm_get(char *name, char **ret_addr)
 //		ptr->name = name;
 //		cprintf("ptr->name set to: %s\n",ptr->name);
 		strncpy(ptr->name,name,strlen(name));
-		cprintf("set name to %s strlen(name)=%d\n",ptr->name,strlen(name));
+//		cprintf("set name to %s strlen(name)=%d\n",ptr->name,strlen(name));
 		ptr->pa = pa;
 		release(&shm_list.lock);
 	}
@@ -491,13 +492,13 @@ shm_get(char *name, char **ret_addr)
 	
 	strncpy(new_shmem->name,name,strlen(name));
 	
-	new_shmem->va = ret_val;
+	new_shmem->va = (char*)ret_val;
 	cprintf("ptr->pa: %d\n",ptr->pa);
 //	cprintf("retval: %p, new_shmem->va: %p\n",ret_val,new_shmem->va);
 	ptr->refcount++;
-	*ret_addr = ret_val;
+//	*ret_addr = ret_val;
 //	cprintf("end shm_get: sz=%d\n",p->sz);
-	return 0;
+	return ret_val;
 }
 
 int
