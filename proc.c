@@ -7,10 +7,19 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#ifndef NBIN
+#define NBIN 16
+#endif
+
 struct {
 	struct spinlock lock;
 	struct proc     proc[NPROC];
 } ptable;
+
+struct {
+	struct spinlock lock;
+	struct list Arr[NBIN];
+} pqueue;
 
 static struct proc *initproc;
 
@@ -21,9 +30,39 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 void
+pqueue_enqueue(struct proc *p, uint priority)
+{
+	cprintf("enqueue p:%d prio:%d\n",p->pid,priority);
+	p->priority = priority;
+	acquire(&pqueue.lock);
+	struct list bin = pqueue.Arr[priority];
+	if (bin.head == (struct proc *)0) {
+		bin.head = bin.tail = p;
+		cprintf("bin %d head: %p\n",priority,bin.head);
+		cprintf("curproc: %p p-param: %p\n",myproc(),p);
+	} else{
+		bin.tail->next = p;
+		bin.tail = p;
+	}
+	p->next = (struct proc*)0;
+	release(&pqueue.lock);
+}
+
+void
 pinit(void)
 {
+	struct proc *p;
 	initlock(&ptable.lock, "ptable");
+	initlock(&pqueue.lock, "pqueue");
+	for (int i = 0; i < NBIN; i++) {
+		pqueue.Arr[i].head = (struct proc*)0;
+		pqueue.Arr[i].tail = (struct proc*)0;
+	}
+	acquire(&ptable.lock);
+	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+		if (p->state != UNUSED) pqueue_enqueue(p,0);
+	}
+	release(&ptable.lock);
 }
 
 // Must be called with interrupts disabled
@@ -71,7 +110,7 @@ myproc(void)
 // state required to run in the kernel.
 // Otherwise return 0.
 static struct proc *
-allocproc(void)
+allocproc(uint priority)
 {
 	struct proc *p;
 	char *       sp;
@@ -87,6 +126,7 @@ allocproc(void)
 found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
+	pqueue_enqueue(p,priority);
 
 	release(&ptable.lock);
 
@@ -122,7 +162,7 @@ userinit(void)
 	struct proc *p;
 	extern char  _binary_initcode_start[], _binary_initcode_size[];
 
-	p = allocproc();
+	p = allocproc(0);
 
 	initproc = p;
 	if ((p->pgdir = setupkvm()) == 0) panic("userinit: out of memory?");
@@ -181,7 +221,7 @@ fork(void)
 	struct proc *curproc = myproc();
 
 	// Allocate process.
-	if ((np = allocproc()) == 0) {
+	if ((np = allocproc(curproc->priority)) == 0) {
 		return -1;
 	}
 
@@ -317,6 +357,7 @@ scheduler(void)
 	struct proc *p;
 	struct cpu * c = mycpu();
 	c->proc        = 0;
+	struct list bin;
 
 	for (;;) {
 		// Enable interrupts on this processor.
@@ -324,6 +365,27 @@ scheduler(void)
 
 		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
+		acquire(&pqueue.lock);
+		for (int i = 0; i < NBIN; i++) {
+			bin = pqueue.Arr[i];
+			if (bin.head != (struct proc*)0) {
+				p = bin.head;
+				while (p != (struct proc*)0) {
+					if (p->state == RUNNABLE) break;
+					p = p->next;
+				}
+				if (p != (struct proc*)0) {
+					c->proc = p;
+					switchuvm(p);
+					p->state = RUNNING;
+					swtch(&(c->scheduler),p->context);
+					switchkvm();
+					c->proc = 0;
+				}
+			}
+		}
+		release(&pqueue.lock);
+		
 		for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 			if (p->state != RUNNABLE) continue;
 
@@ -340,7 +402,9 @@ scheduler(void)
 			// Process is done running for now.
 			// It should have changed its p->state before coming back.
 			c->proc = 0;
-		}
+		} 
+		
+//		release(&pqueue.lock);
 		release(&ptable.lock);
 	}
 }
@@ -505,4 +569,32 @@ procdump(void)
 		}
 		cprintf("\n");
 	}
+}
+
+int
+prio_set(int pid, int priority)
+{
+	struct proc *p;
+	struct list bin;
+	struct proc *proc = (struct proc*)0;
+
+	acquire(&pqueue.lock);
+	for (int i = 0; i < NBIN; i++) {
+		bin = pqueue.Arr[i];
+		if ( (p = bin.head) == (struct proc*)0) continue;
+		if (p->pid == pid) {
+			proc = p;
+			break;
+		}
+		while (p->next != (struct proc*)0) {
+			if (p->next->pid == pid) {
+				proc = p->next;
+				p->next = p->next->next; /* remove proc from old bin */
+				break;
+			}
+		}
+		pqueue_enqueue(proc,priority); /* add proc to new bin */
+	}
+	release(&pqueue.lock);
+	return 0;
 }
