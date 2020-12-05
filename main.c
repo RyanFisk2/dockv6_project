@@ -18,7 +18,7 @@ int
 main(void)
 {
 	kinit1(end, P2V(4 * 1024 * 1024));          // phys page allocator
-	kvmalloc();                                 // kernel page table
+	kvmalloc();                               // kernel page table
 	mpinit();                                   // detect other processors
 	lapicinit();                                // interrupt controller
 	seginit();                                  // segment descriptors
@@ -27,6 +27,7 @@ main(void)
 	consoleinit();                              // console hardware
 	uartinit();                                 // serial port
 	pinit();                                    // process table
+	queueinit();
 	tvinit();                                   // trap vectors
 	binit();                                    // buffer cache
 	fileinit();                                 // file table

@@ -6,24 +6,25 @@ main(void)
 {
         int pid1,pid2;
         pid1 = fork();
-        if (pid1 != 0) {
+        if (pid1 != 0) pid2 = fork();
+        if (pid1 != 0 && pid2 != 0) {
+ //               printf(1,"parent\n");
                 prio_set(pid1,2);
-//                prio_set(3,3);
-                pid2 = fork();
-                if (pid2 != 0) {
-                        prio_set(pid2,1);
-                        sleep(1);
-                        printf(1,"ch2 prio set\n");
-                        wait();
-                        wait();
-                        printf(1,"back to parent\n");
-                        exit();
-                } else{
-                        printf(1,"prio=2\n");
-                        exit();
-                }
-        } else{
-                printf(1,"prio=1\n");
+                prio_set(pid2,1);
+                 wait();
+ //                printf(1,"back from first wait\n");
+                 wait();
+//                 printf(1,"back from 2nd wait\n");
+                 exit();
+        }
+        if (pid1 == 0) {
+                sleep(1);
+                printf(1,"prio=2\n");
+                exit();
+        }
+        if (pid2 == 0) {
+                sleep(1);
+                printf(1,"prio = 1\n");
                 exit();
         }
 }

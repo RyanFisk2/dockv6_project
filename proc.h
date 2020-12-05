@@ -64,6 +64,7 @@ struct proc {
 struct list {
 	struct proc *head;
 	struct proc *tail;
+	int	     size;
 };
 
 // Process memory is laid out contiguously, low addresses first:
