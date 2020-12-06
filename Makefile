@@ -176,9 +176,12 @@ UPROGS=\
 	_zombie\
 	_shmem_test\
 	_shmem_test2\
+	_dockv6\
+	_cm\
+	_HelloWorld\
 
-fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+fs.img: mkfs README container_config.json $(UPROGS)
+	./mkfs fs.img README container_config.json $(UPROGS)
 
 -include *.d
 
@@ -191,7 +194,7 @@ clean:
 
 # make a printout
 FILES = $(shell grep -v '^\#' runoff.list)
-PRINT = runoff.list runoff.spec README toc.hdr toc.ftr $(FILES)
+PRINT = runoff.list runoff.spec README container_config.json toc.hdr toc.ftr $(FILES)
 
 xv6.pdf: $(PRINT)
 	./runoff
@@ -247,7 +250,7 @@ EXTRA=\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-	.gdbinit.tmpl gdbutil\
+	.gdbinit.tmpl gdbutil\ container_config.json\
 
 dist:
 	rm -rf dist

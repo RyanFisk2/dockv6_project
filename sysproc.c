@@ -106,3 +106,26 @@ sys_m_rem(void)
 
 	return shm_rem(name);
 }
+
+int
+sys_cm_create_and_enter(void)
+{
+	/* TODO: might need params here */
+	char *init, *fs;
+	int nproc;
+
+	if ((argstr(0, &init) < 0) || (argstr(1, &fs) < 0) || (argint(2, &nproc) < 0)) return -1;
+	return cm_create_and_enter(init, fs, nproc);
+}
+
+int
+sys_cm_maxproc(void)
+{
+	int nproc;
+
+	if(argint(0, &nproc) < 0){
+		return -1;
+	}
+
+	return cm_maxproc(nproc);
+}

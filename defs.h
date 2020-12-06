@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct container;
 
 // bio.c
 void        binit(void);
@@ -120,6 +121,9 @@ void         userinit(void);
 int          wait(void);
 void         wakeup(void *);
 void         yield(void);
+int          cm_create_and_enter(char *, char *, int);
+int          cm_maxproc(int nproc);
+int          cm_setroot(char *, int, struct container *c);
 
 // swtch.S
 void swtch(struct context **, struct context *);

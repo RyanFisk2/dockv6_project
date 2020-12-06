@@ -1,0 +1,5 @@
+{
+        "init": "/HelloWorld",
+        "fs": "/c1/",
+        "nproc": 4
+}
