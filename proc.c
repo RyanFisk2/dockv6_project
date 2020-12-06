@@ -405,6 +405,7 @@ scheduler(void)
 					p = p->next;
 //					cprintf("p:%p p->next:%p\n",p,p->next);
 				}
+				
 				if (p != (struct proc*)0) {
 //					cprintf("pid: %d\n",p->pid);
 					c->proc = p;
@@ -422,28 +423,6 @@ scheduler(void)
 				}
 			}
 		}
-//		release(&pqueue.lock);
-/*	if (!found_bin) {
-//		cprintf("old\n");
-		for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-			if (p->state != RUNNABLE) continue;
-
-			// Switch to chosen process.  It is the process's job
-			// to release ptable.lock and then reacquire it
-			// before jumping back to us.
-			c->proc = p;
-			switchuvm(p);
-			p->state = RUNNING;
-
-			swtch(&(c->scheduler), p->context);
-			switchkvm();
-
-			// Process is done running for now.
-			// It should have changed its p->state before coming back.
-			c->proc = 0;
-		} 
-	}*/
-//		release(&pqueue.lock);
 		release(&ptable.lock);
 	}
 }
@@ -460,17 +439,6 @@ sched(void)
 {
 	int          intena;
 	struct proc *p = myproc();
-/*
-	cprintf("myproc: %d\n",p->pid);
-	for (int i = 0; i < NBIN; i++) {
-		if (pqueue.Arr[i].size != 0) cprintf("i:%d\n",i);
-		struct proc *proc = pqueue.Arr[i].head;
-		while (proc != (struct proc*)0) {
-			cprintf("	%d %d\n",proc->pid,proc->state);
-			proc = proc->next;
-		}
-	}
-*/
 	if (!holding(&ptable.lock)) panic("sched ptable.lock");
 	if (mycpu()->ncli != 1) panic("sched locks");
 	if (p->state == RUNNING) panic("sched running");
@@ -623,14 +591,34 @@ procdump(void)
 int
 prio_set(int pid, int priority)
 {
-	struct proc *p;
-	struct list bin;
+	struct proc *p = (struct proc*)0;
+	struct list *bin;
 	struct proc *proc = (struct proc*)0;
-//	cprintf("prioset curproc:%d setting:%d\n",myproc()->pid,pid);
+	struct proc *temp, *temp_parent;
+	struct proc *curproc = myproc();
+
+	acquire(&ptable.lock);
+	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+		if (p->pid == pid) break;
+	}
+	release(&ptable.lock);
+
+	if (p == (struct proc*)0) return -1; /* no proc w/ given pid exists */
+	temp = p;
+	if (pid != curproc->pid) {
+		while(1) {
+			if (temp == (struct proc*)0) return -1;
+			temp_parent = temp->parent;
+			if (temp_parent == curproc) break;
+			if (temp_parent == initproc && curproc != initproc) return -1; /* calling proc not in ancestry */
+			temp = temp_parent;
+		}
+	}
+
 	for (int i = 0; i < NBIN; i++) {
 //		acquire(&pqueue.lock);
-		bin = pqueue.Arr[i];
-		if ( (p = bin.head) == (struct proc*)0) continue;
+		bin = &pqueue.Arr[i];
+		if ( (p = bin->head) == (struct proc*)0) continue;
 		if (p->pid == pid) {
 			proc = p;
 			break;

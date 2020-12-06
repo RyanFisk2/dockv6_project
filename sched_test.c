@@ -18,13 +18,18 @@ main(void)
                  exit();
         }
         if (pid1 == 0) {
-                sleep(1);
-                printf(1,"prio=2\n");
+                sleep(4);
+                for (int i = 0; i < 10; i++){
+                        printf(1,"prio=2\n");
+                }
                 exit();
         }
         if (pid2 == 0) {
-                sleep(1);
-                printf(1,"prio = 1\n");
+                sleep(4);
+                for (int i = 0; i < 10; i++) {
+                        printf(1,"prio = 1\n");
+                }
+                if (prio_set(pid1,1) != -1) printf(1,"[Err]: set prio - not in ancestry\n");
                 exit();
         }
 }
