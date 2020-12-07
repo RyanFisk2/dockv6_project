@@ -531,6 +531,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
 
 // Write a new directory entry (name, inum) into the directory dp.
 int
+
 dirlink(struct inode *dp, char *name, uint inum)
 {
 	int           off;
@@ -540,6 +541,7 @@ dirlink(struct inode *dp, char *name, uint inum)
 	// Check that name is not present.
 	if ((ip = dirlookup(dp, name, 0)) != 0) {
 		iput(ip);
+		cprintf("found directory error!\n");
 		return -1;
 	}
 
@@ -645,7 +647,7 @@ nameiparent(char *path, char *name)
 }
 
 /*
- * used by dockv6_init to copy binary files to the container directory
+ * used by dockv6_init to copy files to the container directory
  */
 int
 copy_file(char *dir, char *file)

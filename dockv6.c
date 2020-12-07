@@ -5,7 +5,7 @@
 
 /*
  * jsoneq function copied from jsmn.c
- * needed this to be visible for json parsing
+ * had visibility issues with it being at jsmn/jsmn.c, so moved it here 
  */
 static int 
 jsoneq(const char *json, jsmntok_t *tok, char *s) {
@@ -18,9 +18,16 @@ jsoneq(const char *json, jsmntok_t *tok, char *s) {
 
 
 /*
- * check for correct usage of the dockv6 command
- * should be "dockv6 create config.json"
- * then pass specs to conatiner manager to create
+ * dockv6 reads a json config file for container specifications
+ * including the initial process to run in the container, the
+ * root fs for the container, and the maximum number of processes
+ * for that container
+ * 
+ * dockv6 passes those specs to the container manager via shared memory
+ * 
+ * TODO: integrate with condition variables
+ *       to signal CM to wakeup when dockv6 writes
+ *       specs into shared memory 
  */
 int
 main(int argc, char* argv[])
@@ -30,8 +37,6 @@ main(int argc, char* argv[])
         char init[32], fs[32], nproc_array[32];
         jsmn_parser p;
         jsmntok_t t[128];
-        char *init2, *fs2;
-        init2 = fs2 = "";
 
         if(argc != 3){
                 printf(1, "Usage: dockv6 create <config json file>\n");
@@ -84,26 +89,19 @@ main(int argc, char* argv[])
 
         }
 
-//        strcpy(init2,init);
-//        strcpy(fs2,fs);
 
-        printf(1,"dockv6 init: %s\n fs: %s\n",init2,fs2);
-        printf(1,"\n\ndockv6 init: %s\n fs: %s\n",init,fs);
         //pass init, fs, and nproc to cm with shared mem
         char *shmem = shm_get("dockv6");
 
-//        init2 = "/hello_world";
         strcpy(shmem, init);
- //       printf(1,"%p\n",shmem);
-        shmem += (strlen(init)*sizeof(char) + sizeof(char));
-        printf(1,"%p\n",shmem);
+        shmem += ((strlen(init) * sizeof(char)) + sizeof(char));
+
         strcpy(shmem,fs);
-        shmem += (strlen(fs)*sizeof(char) + sizeof(char));
- //       fs2 = "/c1";
+        shmem += ((strlen(fs) * sizeof(char)) + sizeof(char));
 
         *shmem = nproc;
         
-
+        //need this loop to keep shared mem visible for CM
         while(1);
 
         exit();   

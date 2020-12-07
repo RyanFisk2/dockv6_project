@@ -6,7 +6,10 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "sleeplock.h"
 #include "cm.h"
+#include "fs.h"
+#include "file.h"
 
 struct {
 	struct spinlock lock;
@@ -31,6 +34,10 @@ void
 pinit(void)
 {
 	initlock(&ptable.lock, "ptable");
+	struct proc *p;
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+		p->container_id = 0;
+	}
 }
 
 void
@@ -528,14 +535,22 @@ procdump(void)
 
 /* BELOW ARE THE CONTAINER MANAGER SYS CALLS */
 
+/*
+ * create and enter checks for an open container to use (up to MAX_NUM_CONTAINERS)
+ * and initializes the initial process, file system root, and maximum child procs for the new container.
+ * Then forks a child to run the initial process while the parent (Container Manager) waits for it to finish.
+ * 
+ * Since fork returns to user space, this function returns a single integer to use as a boolean in cm.c
+ * returns 1 for the child process so we exec the init process, 0 for the parent so that we do not exec the init process twice
+ */
 int
 cm_create_and_enter(char *init, char *fs, int nproc)
 {
-	/* TODO, change variable name */
+
 	struct container *c;
 	struct proc *curproc = myproc();
-	//char* argv[] = {"", 0};
-	cprintf("create and enter -\n init: %s\n fs: %s\n nproc: %d\n",init,fs,nproc);
+	struct inode *parent;
+
 	acquire(&containers.lock);
 		for (c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++) {
 			if (c->container_id == -1) goto found;
@@ -549,24 +564,28 @@ found:
 	release(&containers.lock);
 	cm_setroot(fs,strlen(fs),c);
 
-	//set max num proc
+	parent = namei("..");
+
 	c->nproc = nproc;
 	curproc -> container = c;
 	curproc -> container_id = c -> container_id;
+
+	//set root for container
+	/*TODO: set '..' and '/' to limit visibility of outside directories*/
 	curproc->cwd = c->root;
-	//fork/exec init
+	begin_op();
+	dirlink(c->root, "..", parent->inum);
+	dirlink(c->root, "/", 1);
+	end_op();
+
 	int child = fork();
-	if (child != 0) {  /*dockv6*/ 
-		cprintf("parent\n");
+	if (child != 0) {
+		/*CM waits for init to finish*/   
 		wait();
+
 		return 1;
-	} /*else{  new proc 
-		struct proc *p = myproc();
-		p->cwd = cunt->root;
-		//cprintf("chile\n");
-		exec(init, argv);
-		//exit();
-	}*/
+	} 
+	
 	return 0;
 }
 
@@ -583,14 +602,16 @@ cm_maxproc(int nproc)
 	return 1;
 }
 
+/*
+ * setroot gets an inode for the given path, and sets the 
+ * root for the container to that inode
+ */
 int
 cm_setroot(char* path, int path_len, struct container *container)
 {
-	//cprintf("Setting root to %s with length %d\n", path, path_len);
 	struct inode *root_node;
 	if (path_len <= 0) return -1;
 	root_node = namei(path);
-//	if (container_ptr == (struct container*)0) return -1;
 	
 	container->root = root_node;
 	

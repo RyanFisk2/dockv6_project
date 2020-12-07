@@ -144,6 +144,7 @@ sys_link(void)
 	return 0;
 
 bad:
+	cprintf("went to bad :(\n");
 	ilock(ip);
 	ip->nlink--;
 	iupdate(ip);

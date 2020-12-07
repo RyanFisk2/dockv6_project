@@ -2,21 +2,29 @@
 #include "user.h"
 #include "cm.h"
 
-
+/*
+ * cm_create_and_enter forks a new process to run 
+ * the specified init process for a container.
+ * The child returns here with child = 1, and exec's the init process.
+ * Parent returns here after child exits with child = 0, and exits CM
+ */
 void
 create_and_enter(char *init, char* fs, int nproc)
 {
         char *argv[] = {"", 0};
         int child = cm_create_and_enter(init, fs, nproc);
 
-        //child returns to here after forking from create and enter
         if(child) exec(init, argv);
         
         exit();
 }
 
 /*
- * will get the container specs from dockv6 and create the new container
+ * Retrieve container specification from shared memory set by dockv6
+ * 
+ * TODO: this should run as infinite loop, sleeping until dockv6 sets
+ *       shared memory, then wakeup to handle request and go back to sleep.
+ *       Need further implementation of CV module for this.
  */
 int
 main ()
@@ -29,17 +37,15 @@ main ()
 
         char *shmem_addr = shm_get("dockv6");
         strcpy(init,shmem_addr);
-//        printf(1,"init: %s\n",init);
+
         shmem_addr += strlen(init)+sizeof(char);
         strcpy(fs,shmem_addr);
-//       printf(1,"fs: %s\n",fs);
+
         shmem_addr += strlen(fs)+sizeof(char);
         nproc = *shmem_addr;
-//        printf(1,"nproc: %d\n",nproc);
 
         create_and_enter(init, fs, nproc);
 
-        printf(1, "returning here, should be in hello world\n");
         while(1);
         exit();
 }
