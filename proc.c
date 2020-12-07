@@ -33,6 +33,16 @@ pinit(void)
 	initlock(&ptable.lock, "ptable");
 }
 
+void
+cinit(void)
+{
+	initlock(&containers.lock, "containers");
+	struct container *c;
+	for(c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++){
+		c->container_id = -1;
+	}
+}
+
 // Must be called with interrupts disabled
 int
 cpuid()
@@ -522,38 +532,42 @@ int
 cm_create_and_enter(char *init, char *fs, int nproc)
 {
 	/* TODO, change variable name */
-	struct container *cunt;
-	char* argv[] = {init, 0};
+	struct container *c;
+	struct proc *curproc = myproc();
+	//char* argv[] = {"", 0};
 	cprintf("create and enter -\n init: %s\n fs: %s\n nproc: %d\n",init,fs,nproc);
 	acquire(&containers.lock);
-		for (cunt = containers.Arr; cunt < &containers.Arr[MAX_NUM_CONTAINERS]; cunt++) {
-			if (cunt->container_id == -1) goto found;
+		for (c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++) {
+			if (c->container_id == -1) goto found;
 		}
 	release(&containers.lock);
 	cprintf("oh no\n");
 	return -1;
 
 found:
-	cunt->container_id = nextcid++;
+	c->container_id = nextcid++;
 	release(&containers.lock);
-	cm_setroot(fs,strlen(fs),cunt);
+	cm_setroot(fs,strlen(fs),c);
 
 	//set max num proc
-	cunt->nproc = nproc;
+	c->nproc = nproc;
+	curproc -> container = c;
+	curproc -> container_id = c -> container_id;
+	curproc->cwd = c->root;
 	//fork/exec init
 	int child = fork();
-	if (child != 0) { /* dockv6 */
+	if (child != 0) {  /*dockv6*/ 
 		cprintf("parent\n");
 		wait();
 		return 1;
-	} else{ /* new proc */
+	} /*else{  new proc 
 		struct proc *p = myproc();
 		p->cwd = cunt->root;
-		cprintf("chile\n");
+		//cprintf("chile\n");
 		exec(init, argv);
-		exit();
-	}
-	return 1;
+		//exit();
+	}*/
+	return 0;
 }
 
 int
