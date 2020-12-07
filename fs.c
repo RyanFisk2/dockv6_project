@@ -541,7 +541,6 @@ dirlink(struct inode *dp, char *name, uint inum)
 	// Check that name is not present.
 	if ((ip = dirlookup(dp, name, 0)) != 0) {
 		iput(ip);
-		cprintf("found directory error!\n");
 		return -1;
 	}
 
