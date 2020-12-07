@@ -11,14 +11,26 @@ main(void)
 
         int pid = fork();
         if (pid != 0 ) {
+ 
                 shmem_addr = shm_get("hi");
-                *shmem_addr = 2;
+                char *init = "sh";
+                char *fs = "/temp";
+                strcpy(shmem_addr,init);
+                shmem_addr += strlen(init)+sizeof(char);
+                strcpy(shmem_addr,fs);
                 wait();
                 exit();
         } else{
                 printf(1,"pre get: shmem_addr=%d *shmem_addr=%d\n",shmem_addr,*shmem_addr);
                 shmem_addr = shm_get("hi");
-                printf(1,"post get: shmem_addr=%d *shmem_addr=%d\n",shmem_addr,*shmem_addr);
+                char *init, *fs;
+                init = fs = "";
+                strcpy(init,shmem_addr);
+                printf(1,"init: %s\n",init);
+                shmem_addr += strlen(init)+sizeof(char);
+                strcpy(fs,shmem_addr);
+                printf(1,"fs: %s\n",fs);
+                while(1);
                 exit();
         }
 }

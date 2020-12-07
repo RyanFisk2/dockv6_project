@@ -493,7 +493,7 @@ shm_get(char *name)
 	strncpy(new_shmem->name,name,strlen(name));
 	
 	new_shmem->va = (char*)ret_val;
-	cprintf("ptr->pa: %d\n",ptr->pa);
+//	cprintf("ptr->pa: %d\n",ptr->pa);
 //	cprintf("retval: %p, new_shmem->va: %p\n",ret_val,new_shmem->va);
 	ptr->refcount++;
 //	*ret_addr = ret_val;

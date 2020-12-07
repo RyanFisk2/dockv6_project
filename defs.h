@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct container;
 
 // bio.c
 void        binit(void);
@@ -52,7 +53,6 @@ struct inode *nameiparent(char *, char *);
 int           readi(struct inode *, char *, uint, uint);
 void          stati(struct inode *, struct stat *);
 int           writei(struct inode *, char *, uint, uint);
-int           cm_setroot(char* path, int path_len);
 int           copy_file(char *, char *);
 
 
@@ -123,8 +123,9 @@ void         userinit(void);
 int          wait(void);
 void         wakeup(void *);
 void         yield(void);
-int          cm_create_and_enter(void);
+int          cm_create_and_enter(char *, char *, int);
 int          cm_maxproc(int nproc);
+int          cm_setroot(char *, int, struct container *c);
 
 // swtch.S
 void swtch(struct context **, struct context *);

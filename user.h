@@ -23,12 +23,10 @@ int   getpid(void);
 char *sbrk(int);
 int   sleep(int);
 int   uptime(void);
+int   copy_file(char *dir, char *file);
 int   m_get(char *name);
 int   m_rem(char *name);
-int   cm_create_and_enter(void);
-int   cm_setroot(char* path, int path_len);
-int   cm_maxproc(int nproc);
-int   copy_file(char* dir_path, char* file);
+int   cm_create_and_enter(char *init, char *fs, int nproc);
 
 // ulib.c
 int   stat(char *, struct stat *);
@@ -36,7 +34,7 @@ char *strcpy(char *, char *);
 void *memmove(void *, void *, int);
 char *strchr(const char *, char c);
 int   strcmp(const char *, const char *);
-int   strncmp (const char*, const char*, uint n);
+int   strncmp(const char*, const char*, uint);
 void  printf(int, char *, ...);
 char *gets(char *, int max);
 uint  strlen(char *);

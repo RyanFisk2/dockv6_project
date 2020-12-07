@@ -664,18 +664,3 @@ copy_file(char *dir, char *file)
 	return 1;
 }
 
-int
-cm_setroot(char* path, int path_len)
-{
-	//cprintf("Setting root to %s with length %d\n", path, path_len);
-	struct inode *root_node;
-
-	root_node = namei(path);
-
-	readsb(root_node->dev, &sb);
-
-	sb.inodestart = root_node->inum;
-	//sb.ninodes = path_len;
-
-	return 1;
-}

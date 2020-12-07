@@ -415,6 +415,7 @@ sys_cm_setroot(void)
 {
 	char* path;
 	int path_len, result;
+	struct proc *p = myproc();
 
 	begin_op();
 
@@ -423,7 +424,7 @@ sys_cm_setroot(void)
 		return -1;
 	}
 
-	result = cm_setroot(path, path_len);
+	result = cm_setroot(path, path_len, p->container);
 
 	end_op();
 

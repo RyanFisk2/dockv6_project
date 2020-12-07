@@ -178,6 +178,9 @@ UPROGS=\
 	_dockv6_init\
 	_shmem_test\
 	_shmem_test2\
+	_dockv6\
+	_cm\
+	_HelloWorld\
 
 fs.img: mkfs README container_config.json $(UPROGS)
 	./mkfs fs.img README container_config.json $(UPROGS)

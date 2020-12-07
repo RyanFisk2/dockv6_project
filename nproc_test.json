@@ -1,0 +1,5 @@
+{
+        "init": "/nproc_test",
+        "fs": "/",
+        "nproc": 8
+}

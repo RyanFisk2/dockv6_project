@@ -6,16 +6,22 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "cm.h"
 
 struct {
 	struct spinlock lock;
 	struct proc     proc[NPROC];
 } ptable;
 
+struct {
+	struct spinlock lock;
+	struct container Arr[MAX_NUM_CONTAINERS];
+} containers;
 
 static struct proc *initproc;
 
 int         nextpid = 1;
+int	    nextcid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
@@ -513,9 +519,40 @@ procdump(void)
 /* BELOW ARE THE CONTAINER MANAGER SYS CALLS */
 
 int
-cm_create_and_enter(void)
+cm_create_and_enter(char *init, char *fs, int nproc)
 {
-	cprintf("create and enter\n");
+	/* TODO, change variable name */
+	struct container *cunt;
+	char* argv[] = {init, 0};
+	cprintf("create and enter -\n init: %s\n fs: %s\n nproc: %d\n",init,fs,nproc);
+	acquire(&containers.lock);
+		for (cunt = containers.Arr; cunt < &containers.Arr[MAX_NUM_CONTAINERS]; cunt++) {
+			if (cunt->container_id == -1) goto found;
+		}
+	release(&containers.lock);
+	cprintf("oh no\n");
+	return -1;
+
+found:
+	cunt->container_id = nextcid++;
+	release(&containers.lock);
+	cm_setroot(fs,strlen(fs),cunt);
+
+	//set max num proc
+	cunt->nproc = nproc;
+	//fork/exec init
+	int child = fork();
+	if (child != 0) { /* dockv6 */
+		cprintf("parent\n");
+		wait();
+		return 1;
+	} else{ /* new proc */
+		struct proc *p = myproc();
+		p->cwd = cunt->root;
+		cprintf("chile\n");
+		exec(init, argv);
+		exit();
+	}
 	return 1;
 }
 
@@ -529,5 +566,19 @@ cm_maxproc(int nproc)
 
 	cprintf("assigning %d as max procs for this container\n", nproc);
 
+	return 1;
+}
+
+int
+cm_setroot(char* path, int path_len, struct container *container)
+{
+	//cprintf("Setting root to %s with length %d\n", path, path_len);
+	struct inode *root_node;
+	if (path_len <= 0) return -1;
+	root_node = namei(path);
+//	if (container_ptr == (struct container*)0) return -1;
+	
+	container->root = root_node;
+	
 	return 1;
 }
