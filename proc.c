@@ -32,30 +32,28 @@ static void wakeup1(void *chan);
 void
 pqueue_enqueue(struct proc *p, uint priority)
 {
-//	cprintf("enqueue p:%d prio:%d\n",p->pid,priority);
 	p->priority = priority;
 	acquire(&pqueue.lock);
 	struct list *bin = &pqueue.Arr[priority];
 	if (bin->head == (struct proc *)0) {
 		bin->head = bin->tail = p;
-//		cprintf("bin %d head: %p\n",priority,bin->head);
-//		cprintf("curproc: %p p-param: %p\n",p,priority);
+
 	} else{
 		bin->tail->next = p;
 		bin->tail = p;
 	}
 	bin->size++;
-//	cprintf("p->next: %p\n",p->next);
+
 	p->next = (struct proc*)0;
 	release(&pqueue.lock);
-//	cprintf("out enqueue\n");
+
 }
 
 void
 queueinit(void)
 {
 	struct proc *p;
-//	cprintf("queueinit\n");
+
 	initlock(&pqueue.lock, "pqueue");
 	for (int i = 0; i < NBIN; i++) {
 		pqueue.Arr[i].head = (struct proc*)0;
@@ -72,7 +70,6 @@ queueinit(void)
 void
 pinit(void)
 {
-//	cprintf("pinit\n");
 	initlock(&ptable.lock, "ptable");	
 }
 
@@ -138,9 +135,9 @@ found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
 	pqueue_enqueue(p,priority);
-//	cprintf("hi1\n");
+
 	release(&ptable.lock);
-//	cprintf("hi\n");
+
 	// Allocate kernel stack.
 	if ((p->kstack = kalloc()) == 0) {
 		p->state = UNUSED;
@@ -161,7 +158,6 @@ found:
 	p->context = (struct context *)sp;
 	memset(p->context, 0, sizeof *p->context);
 	p->context->eip = (uint)forkret;
-//	cprintf("done w/ allocproc\n");
 	return p;
 }
 
@@ -278,7 +274,7 @@ exit(void)
 	struct proc *p;
 	int          fd;
 
-//	cprintf("pid:%d exiting\n",curproc->pid);
+
 
 	if (curproc == initproc) panic("init exiting");
 
@@ -299,7 +295,7 @@ exit(void)
 
 	// Parent might be sleeping in wait().
 	wakeup1(curproc->parent);
-//	cprintf("wokeup parent\n");
+
 	// Pass abandoned children to init.
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 		if (p->parent == curproc) {
@@ -307,19 +303,7 @@ exit(void)
 			if (p->state == ZOMBIE) wakeup1(initproc);
 		}
 	}
-/*
-	struct list *bin = &pqueue.Arr[curproc->priority];
-	p = bin->head;
-	if (p == curproc) bin->head = bin->head->next;
-	while(p->next != (struct proc*)0) {
-		if (p->next == curproc) {
-			break;
-		}
-		p = p->next;
-	}
-*/
-//	p->next = p->next->next;
-	// Jump into the scheduler, never to return.
+
 	curproc->state = ZOMBIE;
 	sched();
 	panic("zombie exit");
@@ -353,7 +337,6 @@ wait(void)
 				p->killed  = 0;
 				p->state   = UNUSED;
 				release(&ptable.lock);
-//				cprintf("wait ret %d\n",pid);
 				return pid;
 			}
 		}
@@ -363,10 +346,9 @@ wait(void)
 			release(&ptable.lock);
 			return -1;
 		}
-//		cprintf("pid%d going to sleep\n",curproc->pid);
+
 		// Wait for children to exit.  (See wakeup1 call in proc_exit.)
 		sleep(curproc, &ptable.lock); // DOC: wait-sleep
-//		cprintf("pid%d woken up\n",curproc->pid);
 	}
 }
 
@@ -386,7 +368,6 @@ scheduler(void)
 	c->proc        = 0;
 	struct list *bin;
 
-//	cprintf("starting sched bin[0].head: %p\n",pqueue.Arr[0].head);
 	for (;;) {
 		// Enable interrupts on this processor.
 		sti();
@@ -397,29 +378,24 @@ scheduler(void)
 		for (int i = 0; i < NBIN; i++) {
 			bin = &pqueue.Arr[i];
 			if (bin->head != (struct proc*)0) {
-//				cprintf("found a bin\n");
+				
 				p = bin->head;
 				while (p != (struct proc*)0) {
-				//	if (p->state == RUNNING && p != myproc()) p->state = RUNNABLE;
 					if (p->state == RUNNABLE) break;
 					p = p->next;
-//					cprintf("p:%p p->next:%p\n",p,p->next);
 				}
 				
 				if (p != (struct proc*)0) {
-//					cprintf("pid: %d\n",p->pid);
 					c->proc = p;
 					switchuvm(p);
 					p->state = RUNNING;
 					swtch(&(c->scheduler),p->context);
-//					cprintf("back to sched: pid-%d\n",p->pid);
-					if (p->state == RUNNING) {
-//						cprintf("pid%d running on return\n",p->pid);
-						p->state = RUNNABLE;
-					}
+
 					switchkvm();
 					c->proc = 0;
 					i = 0;
+					p = 0;
+					break;
 				}
 			}
 		}
@@ -603,6 +579,7 @@ prio_set(int pid, int priority)
 	}
 	release(&ptable.lock);
 
+	if (priority < p->priority) return -1; /* cant set priority higher than curr priority */
 	if (p == (struct proc*)0) return -1; /* no proc w/ given pid exists */
 	temp = p;
 	if (pid != curproc->pid) {
@@ -633,7 +610,6 @@ prio_set(int pid, int priority)
 		}
 //		release(&pqueue.lock);
 		pqueue_enqueue(proc,priority); /* add proc to new bin */
-//		procdump();
 	}
 	return 0;
 }
