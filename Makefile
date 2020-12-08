@@ -174,8 +174,10 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
-	_shmem_test\
-	_shmem_test2\
+	_shmem_testp1\
+	_shmem_testp2\
+	_shmem2_p1\
+	_shmem2_p2\
 	_dockv6\
 	_cm\
 	_HelloWorld\
