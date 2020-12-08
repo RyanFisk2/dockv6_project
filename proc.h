@@ -37,8 +37,10 @@ struct context {
 };
 
 struct shmem {
+	int  in_use;
 	char name[16];
 	char* va;
+	struct shared_mem *global_ptr;
 };
 
 enum procstate

@@ -95,7 +95,9 @@ found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
 
-	memset(p->shared_mem,0,sizeof(p->shared_mem));
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		p->shared_mem[i].in_use = 0;
+	}
 
 	release(&ptable.lock);
 
@@ -242,6 +244,13 @@ exit(void)
 		if (curproc->ofile[fd]) {
 			fileclose(curproc->ofile[fd]);
 			curproc->ofile[fd] = 0;
+		}
+	}
+
+	// remove shared mem
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		if (curproc->shared_mem[i].in_use) {
+			shm_rem(curproc->shared_mem[i].name);
 		}
 	}
 

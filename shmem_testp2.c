@@ -20,6 +20,5 @@ main(void)
         shmem_addr += strlen(fs) + sizeof(char);
         nproc = *shmem_addr;
         printf(1,"nproc: %d\n",nproc);
-        while(1);
         exit();
 }
