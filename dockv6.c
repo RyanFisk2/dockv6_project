@@ -46,7 +46,7 @@ main(int argc, char* argv[])
 
         if((jfd = open(argv[2], 0)) < 0)
         {
-                printf(1, "ERROR opening container_config.json\n");
+                printf(1, "ERROR opening json\n");
                 exit();
         }else{
                 while((n = read(jfd, buf, sizeof(buf))) > 0);

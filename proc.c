@@ -47,6 +47,7 @@ cinit(void)
 	struct container *c;
 	for(c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++){
 		c->container_id = -1;
+		c->nproc = -1;
 	}
 }
 
@@ -207,6 +208,21 @@ fork(void)
 	struct proc *curproc = myproc();
 
 	// Allocate process.
+	if (curproc -> container_id)
+	{
+		cprintf("forking from container\n");
+		//in a container, need to limit number of forks
+		if(curproc->container->nproc == 0)
+		{
+			//reached limit on procs, return ERR
+			cprintf("Reached proc limit for container\n");
+			return -1;
+		}else{
+			curproc->container->nproc --;
+			cprintf("remaing procs: %d\n", curproc->container->nproc);
+		}
+	}
+
 	if ((np = allocproc()) == 0) {
 		return -1;
 	}
@@ -221,6 +237,8 @@ fork(void)
 	np->sz     = curproc->sz;
 	np->parent = curproc;
 	*np->tf    = *curproc->tf;
+	np -> container = curproc -> container;
+	np -> container_id = curproc -> container_id;
 
 	// Clear %eax so that fork returns 0 in the child.
 	np->tf->eax = 0;
@@ -253,6 +271,12 @@ exit(void)
 	int          fd;
 
 	if (curproc == initproc) panic("init exiting");
+
+	if(curproc->container_id)
+	{
+		//can have one addition proc now that this one is exiting
+		curproc->container->nproc ++;
+	}
 
 	// Close all open files.
 	for (fd = 0; fd < NOFILE; fd++) {
@@ -566,13 +590,13 @@ found:
 
 	parent = namei("..");
 
-	c->nproc = nproc;
 	curproc -> container = c;
 	curproc -> container_id = c -> container_id;
+	cm_maxproc(nproc);
 
 	//set root for container
 	/*TODO: set '..' and '/' to limit visibility of outside directories*/
-	curproc->cwd = c->root;
+	curproc->cwd = idup(c->root);
 	begin_op();
 	dirlink(c->root, "..", parent->inum);
 	dirlink(c->root, "/", 1);
@@ -594,10 +618,21 @@ cm_maxproc(int nproc)
 {
 	if(nproc >= NPROC){
 		cprintf("ERR: cannot give more than NPROC to one container\n");
-		return 0;
+		return -1;
 	}
 
-	cprintf("assigning %d as max procs for this container\n", nproc);
+	struct proc *p = myproc();
+	struct container *c = p->container;
+
+	if ((c->nproc != -1) || (p->container_id == 0))
+	{
+		cprintf("ERR: nproc already set or not in container\n");
+		return -1;
+	}
+
+	cprintf("setting nproc to %d\n", nproc);
+
+	c -> nproc = nproc;
 
 	return 1;
 }

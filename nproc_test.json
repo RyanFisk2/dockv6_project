@@ -1,5 +1,5 @@
 {
-        "init": "/nproc_test",
-        "fs": "/",
-        "nproc": 8
+        "init": "/nproc_test2",
+        "fs": "/container/",
+        "nproc": 4
 }
