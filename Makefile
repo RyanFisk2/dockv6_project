@@ -178,6 +178,7 @@ UPROGS=\
 	_shmem_testp2\
 	_shmem2_p1\
 	_shmem2_p2\
+	_shmem3\
 	_dockv6\
 	_cm\
 	_HelloWorld\

@@ -407,7 +407,6 @@ shm_get(char *name)
 	for (int i = 0;  i < SHM_MAXNUM; i++) {
 		cur_name = p->shared_mem[i].name;
 		if (!p->shared_mem[i].in_use && new_shmem == (struct shmem*)0) {
-			cprintf("found shmem spot\n");
 			new_shmem = &p->shared_mem[i];
 		}
 //		if (strncmp(cur_name,(char*)0,sizeof((char*)0)) == 0) new_shmem = &p->shared_mem[i];
@@ -496,6 +495,7 @@ shm_get(char *name)
 int
 shm_rem(char *name)
 {
+	cprintf("rem\n");
 	struct shared_mem *ptr = (struct shared_mem*)0;
 	struct shmem *proc_ptr = (struct shmem*)0;
 	struct proc *cur_proc = myproc();
@@ -503,44 +503,45 @@ shm_rem(char *name)
 	
 	acquire(&shm_list.lock);
 	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
-		if (!strncmp(ptr->name, name, sizeof(name))) {
-			break;
+		if (strncmp(ptr->name, name, strlen(name)) == 0) {
+			goto found_page;
 		}
 	}
 	release(&shm_list.lock);
+	return -1; /* no shared page w/ given name */
+found_page:
+	release(&shm_list.lock);
+	/* releasing existing shared mem */
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		cur_name = cur_proc->shared_mem[i].name;
+		if (strncmp(cur_name,name,sizeof(name)) == 0) {
+			proc_ptr = &cur_proc->shared_mem[i];
+			break;
+		}
+	}
+	
+	if (proc_ptr == (struct shmem*)0) return -1; /* curproc does not hold shmem w/ this name */
+	proc_ptr->in_use = 0;
+	
+	pde_t *pte = walkpgdir(cur_proc->pgdir,proc_ptr->va,0);
+	cprintf("refcount:%d\n",ptr->refcount);
 
-	if (!ptr) { /* no shared mem with identifier "name" exists */
-		return -1;
-	} else{ /* releasing existing shared mem */
-		for (int i = 0; i < SHM_MAXNUM; i++) {
-			cur_name = cur_proc->shared_mem[i].name;
-			if (strncmp(cur_name,name,sizeof(name)) == 0) {
-				proc_ptr = &cur_proc->shared_mem[i];
-				break;
-			}
-		}
-		
-		if (proc_ptr == (struct shmem*)0) return -1; /* curproc does not hold shmem w/ this name */
-		if (ptr->refcount == 1) { /* curproc is only proc holding shmem */
-//			ptr->name = (char*)0;
-			ptr->pa = -1;
-		}
-//		uint old_sz = cur_proc->sz;
-//		uint new_sz = (uint)proc_ptr->va;
-		pde_t *pte = walkpgdir(cur_proc->pgdir,proc_ptr->va,0);
+	if (ptr->refcount == 1) { /* curproc is only proc holding shmem -- deallocate mem */
+		cprintf("dealloc %s\n",ptr->name);
 		uint pa = PTE_ADDR(*pte);
 		char *v = P2V(pa);
 		kfree(v);
-		*pte = 0;
-		memset(&proc_ptr->name,0,sizeof(proc_ptr->name));
-//		proc_ptr->name = (char*)0;
-		proc_ptr->va = (char*)-1;
-		ptr->refcount--;
-		cur_proc->sz -= PGSIZE;
-//		deallocuvm(cur_proc->pgdir,old_sz,new_sz);
-//		cprintf("dealloced page: sz was %d now is %d\n",old_sz,new_sz);
-//		cprintf("refcnt = %d\n",ptr->refcount);
+		ptr->pa = -1;
+		strncpy(ptr->name,"",sizeof(ptr->name));
+		cprintf("%s\n",ptr->name);
+		return 0;
 	}
+	if ((*pte & PTE_P) != 0) *pte = 0; /* unmap page */
+	memset(&proc_ptr->name,0,sizeof(proc_ptr->name));
+
+	proc_ptr->va = (char*)-1;
+	ptr->refcount--;
+	cur_proc->sz -= PGSIZE;
 	return 0;
 }
 
