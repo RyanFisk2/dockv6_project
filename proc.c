@@ -189,6 +189,7 @@ fork(void)
 {
 	int          i, pid;
 	struct proc *np;
+	struct shmem *newproc_shmem, *parent_shmem;
 	struct proc *curproc = myproc();
 
 	// Allocate process.
@@ -206,6 +207,15 @@ fork(void)
 	np->sz     = curproc->sz;
 	np->parent = curproc;
 	*np->tf    = *curproc->tf;
+
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		newproc_shmem = &np->shared_mem[i];
+		parent_shmem = &curproc->shared_mem[i];
+		newproc_shmem->in_use = parent_shmem->in_use;
+		strncpy(newproc_shmem->name,parent_shmem->name,strlen(parent_shmem->name));
+		newproc_shmem->va = parent_shmem->va;
+		newproc_shmem->global_ptr = parent_shmem->global_ptr;
+	}
 
 	// Clear %eax so that fork returns 0 in the child.
 	np->tf->eax = 0;

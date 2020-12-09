@@ -320,7 +320,9 @@ copyuvm(pde_t *pgdir, uint sz)
 	pde_t *d;
 	pte_t *pte;
 	uint   pa, i, flags;
-	char * mem;
+	char * mem, *va;
+	struct proc *curproc = myproc();
+	uint is_shmem = 0;
 
 	if ((d = setupkvm()) == 0) return 0;
 	for (i = 0; i < sz; i += PGSIZE) {
@@ -328,10 +330,38 @@ copyuvm(pde_t *pgdir, uint sz)
 		if (!(*pte & PTE_P)) panic("copyuvm: page not present");
 		pa    = PTE_ADDR(*pte);
 		flags = PTE_FLAGS(*pte);
-		if ((mem = kalloc()) == 0) goto bad;
-		memmove(mem, (char *)P2V(pa), PGSIZE);
-		if (mappages(d, (void *)i, PGSIZE, V2P(mem), flags) < 0) goto bad;
+
+		for (int j = 0; j < SHM_MAXNUM; j++) {
+			if (curproc->shared_mem[j].in_use == 1) {
+				if (pa == curproc->shared_mem[j].global_ptr->pa) {
+					va = curproc->shared_mem[j].va;
+					is_shmem = 1;
+					break;
+				}
+			}
+		}
+
+		if (!is_shmem) {
+			if ((mem = kalloc()) == 0) goto bad;
+			memmove(mem, (char *)P2V(pa), PGSIZE);
+			if (mappages(d, (void *)i, PGSIZE, V2P(mem), flags) < 0) goto bad;
+		} else{
+			mappages(d,(void*)va,PGSIZE,pa,flags);
+			is_shmem = 0;
+		}
+
 	}
+/*
+	for (i = 0; i < SHM_MAXNUM; i++) {
+		struct shmem *curshmem = &curproc->shared_mem[i];
+		char* va = curshmem->va;
+		pte = walkpgdir(pgdir,va,0);
+		if (*pte & PTE_P) *pte = 0;
+		pa = PTE_ADDR(*pte);
+		flags = PTE_FLAGS(*pte);
+		mappages(d,(void*)va,PGSIZE,V2P((char*)pa),flags);
+	}
+*/
 	return d;
 
 bad:
@@ -495,7 +525,6 @@ shm_get(char *name)
 int
 shm_rem(char *name)
 {
-	cprintf("rem\n");
 	struct shared_mem *ptr = (struct shared_mem*)0;
 	struct shmem *proc_ptr = (struct shmem*)0;
 	struct proc *cur_proc = myproc();
@@ -524,21 +553,18 @@ found_page:
 	proc_ptr->in_use = 0;
 	
 	pde_t *pte = walkpgdir(cur_proc->pgdir,proc_ptr->va,0);
-	cprintf("refcount:%d\n",ptr->refcount);
 
 	if (ptr->refcount == 1) { /* curproc is only proc holding shmem -- deallocate mem */
-		cprintf("dealloc %s\n",ptr->name);
 		uint pa = PTE_ADDR(*pte);
 		char *v = P2V(pa);
 		kfree(v);
 		ptr->pa = -1;
 		strncpy(ptr->name,"",sizeof(ptr->name));
-		cprintf("%s\n",ptr->name);
 		return 0;
 	}
 	if ((*pte & PTE_P) != 0) *pte = 0; /* unmap page */
-	memset(&proc_ptr->name,0,sizeof(proc_ptr->name));
 
+	strncpy(proc_ptr->name,"",sizeof(proc_ptr->name));
 	proc_ptr->va = (char*)-1;
 	ptr->refcount--;
 	cur_proc->sz -= PGSIZE;
