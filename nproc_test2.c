@@ -73,7 +73,7 @@ main()
 
                                         }else if (pid5 != -1){
                                                 wait();
-                                                //exit();
+                                                exit();
                                         }else{
                                                 printf(1, "ending nproc_test2, num_forks: %d\n", num_forks);
                                                 done = 1;
@@ -82,7 +82,7 @@ main()
 
                                 }else if(pid4 != -1){
                                         wait();
-                                        //exit();
+                                        exit();
                                 }else{
                                         printf(1, "ending nproc_test2, num_forks: %d\n", num_forks);
                                         done = 1;
@@ -91,7 +91,7 @@ main()
 
                         }else if(pid3 != -1){
                                 wait();
-                                //exit();
+                                exit();
                         }else{
                                 printf(1, "ending nproc_test2, num_forks: %d\n", num_forks);
                                 done = 1;
@@ -99,7 +99,7 @@ main()
                         }
                 }else if (pid2 != -1) {
                         wait();
-                        //exit();
+                        exit();
                 }
         }else if (pid != -1){
                 wait();

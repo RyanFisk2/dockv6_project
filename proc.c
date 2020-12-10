@@ -210,16 +210,14 @@ fork(void)
 	// Allocate process.
 	if (curproc -> container_id)
 	{
-		cprintf("forking from container\n");
+
 		//in a container, need to limit number of forks
 		if(curproc->container->nproc == 0)
 		{
 			//reached limit on procs, return ERR
-			cprintf("Reached proc limit for container\n");
 			return -1;
 		}else{
 			curproc->container->nproc --;
-			cprintf("remaing procs: %d\n", curproc->container->nproc);
 		}
 	}
 
@@ -271,12 +269,6 @@ exit(void)
 	int          fd;
 
 	if (curproc == initproc) panic("init exiting");
-
-	if(curproc->container_id)
-	{
-		//can have one addition proc now that this one is exiting
-		curproc->container->nproc ++;
-	}
 
 	// Close all open files.
 	for (fd = 0; fd < NOFILE; fd++) {
@@ -338,6 +330,12 @@ wait(void)
 				p->killed  = 0;
 				p->state   = UNUSED;
 				release(&ptable.lock);
+
+				if(curproc -> container_id)
+				{
+					//freed proc, so we can allocate another in this container
+					curproc -> container -> nproc ++;
+				}
 				return pid;
 			}
 		}
@@ -513,10 +511,11 @@ int
 kill(int pid)
 {
 	struct proc *p;
+	struct proc *curproc = myproc();
 
 	acquire(&ptable.lock);
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-		if (p->pid == pid) {
+		if ((p->pid == pid) && (p->container_id == curproc -> container_id)) {
 			p->killed = 1;
 			// Wake process from sleep if necessary.
 			if (p->state == SLEEPING) p->state = RUNNABLE;
@@ -573,7 +572,7 @@ cm_create_and_enter(char *init, char *fs, int nproc)
 
 	struct container *c;
 	struct proc *curproc = myproc();
-	struct inode *parent;
+	//struct inode *parent;
 
 	acquire(&containers.lock);
 		for (c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++) {
@@ -588,7 +587,7 @@ found:
 	release(&containers.lock);
 	cm_setroot(fs,strlen(fs),c);
 
-	parent = namei("..");
+	//parent = namei("..");
 
 	curproc -> container = c;
 	curproc -> container_id = c -> container_id;
@@ -598,8 +597,8 @@ found:
 	/*TODO: set '..' and '/' to limit visibility of outside directories*/
 	curproc->cwd = idup(c->root);
 	begin_op();
-	dirlink(c->root, "..", parent->inum);
-	dirlink(c->root, "/", 1);
+	//dirlink(c->root, "..", parent->inum);
+	//dirlink(c->root, "/", 1);
 	end_op();
 
 	int child = fork();

@@ -110,7 +110,6 @@ sys_m_rem(void)
 int
 sys_cm_create_and_enter(void)
 {
-	/* TODO: might need params here */
 	char *init, *fs;
 	int nproc;
 
