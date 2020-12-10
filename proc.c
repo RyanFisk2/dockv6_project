@@ -634,7 +634,7 @@ void mutex_lock(int muxid){
 		popcli();
 		yield();
 	}
-
+//IS THIS SUPPOSED TO BE BLOCKING...? "If the mutex is already owned, then we must block, awaiting the other process to release the mutex."
 	__sync_synchronize();
 
 	mux->pid = curr_proc->pid;
@@ -643,8 +643,32 @@ void mutex_lock(int muxid){
 	return;
 }
 void cv_wait(int muxid){
+	struct proc *curr_proc = myproc();
+	struct mutex *mux = curr_proc->mutex[muxid];
+	
+	if(mutex_holding(mux)){
+		mutex_unlock(muxid);
+
+		//Maybe add a condition variable that gets changed on wakeup(muxid)? Maybe just continue with code. 
+		// I don't know how the container calls EXACTLY work, but im assumming it similar to pipes
+		while(/*we have not recieved reply from container manager*/){
+			/*  BLOCK WHILE WAITING. MUST HAVE SOME WAY OF WAKING UP ON CHAN
+			*	while(l->locked == 1){
+			*		sleep(l, &ltable.lock);
+			*	}
+			*	l->locked = 1;
+			*	l->lockedBy = p->pid;
+			*	release(&ltable.lock);
+			*/
+		
+		
+		}
+		mutex_lock(muxid);
+	}
 	return;
 }
 void cv_signal(int muxid){
+	wakeup(muxid);
+	//no way this is THIS easy. no. way.
 	return;
 }

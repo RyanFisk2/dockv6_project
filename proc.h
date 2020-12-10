@@ -37,7 +37,8 @@ struct mutex {
 	int	    		isAlloc; // 0 if false, 1 if true
 	int		    	pid; 	 // pid of who locked this lock
     char*           name;    // name of lock
-	int				refcount;
+	int				refcount;	// Number of processes that can reference this mutex
+	int 			container_id;	// container id, 0 if none?
 };
 
 enum procstate
