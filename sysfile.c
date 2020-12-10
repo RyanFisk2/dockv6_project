@@ -355,6 +355,12 @@ sys_chdir(void)
 		return -1;
 	}
 
+	/*
+	 * If in a container, cannot use cd .. to escape
+	 * 
+	 * TODO: fix this such that we can navigate directories within the container
+	 */
+	
 	if (curproc->container_id > 0 && strncmp(path, "..", strlen(path)) == 0) {
 		return -1;
 	}

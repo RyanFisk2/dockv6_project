@@ -609,15 +609,17 @@ namex(char *path, int nameiparent, char *name)
 
 	ip = 0;
 	struct proc *p;
+	
+	/*
+	 * if we are in a container, return the container root instead of absolute root
+	 */
+
 	if ( (p = myproc()) != 0) {
 		if (p->container_id > 0) {
 			if ((*path == '/')) {
 				ip = idup(p->container->root);
-			//	ip = p->container->root;
-//				cprintf("path=/ ip=%p\n",ip);
 			} else{
 				ip = idup(myproc()->cwd);
-//				cprintf("path !=/ ip=%p\n",ip);
 			}
 		} else{
 			if (*path == '/'){

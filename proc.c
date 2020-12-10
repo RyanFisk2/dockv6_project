@@ -575,7 +575,6 @@ cm_create_and_enter(char *init, char *fs, int nproc)
 
 	struct container *c;
 	struct proc *curproc = myproc();
-	//struct inode *parent;
 
 	acquire(&containers.lock);
 		for (c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++) {
@@ -590,18 +589,14 @@ found:
 	release(&containers.lock);
 	
 
-	//parent = namei("..");
 
 	curproc -> container = c;
 
 	//set root for container
-	/*TODO: set '..' and '/' to limit visibility of outside directories*/
 	
 	begin_op();
 	cm_setroot(fs,strlen(fs),c);
 	curproc->cwd = idup(c->root);
-	//dirlink(c->root, "..", parent->inum);
-	//dirlink(c->root, "/", 1);
 	end_op();
 
 	curproc -> container_id = c -> container_id;
@@ -654,7 +649,6 @@ cm_setroot(char* path, int path_len, struct container *container)
 	root_node = namei(path);
 	
 	memmove(&container->root,&root_node, sizeof(root_node));
-//	container->root = root_node;
 	
 	return 1;
 }
