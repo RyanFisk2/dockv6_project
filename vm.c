@@ -28,7 +28,11 @@ init_shm_list(void)
 	initlock(&shm_list.lock, "shm_list");
 
 	acquire(&shm_list.lock);
-	memset(&shm_list.list->refcount,0,SHM_MAXNUM);
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		shm_list.list[i].refcount = 0;
+		shm_list.list[i].in_use = 0;
+	}
+//	memset(&shm_list.list->refcount,0,SHM_MAXNUM);
 	release(&shm_list.lock);
 }
 
@@ -432,7 +436,7 @@ shm_get(char *name)
 	}free_ptr;
 	free_ptr.set = 0;
 
-	if (strncmp(name,(char*)0,sizeof(name)) == 0) return -1; /* can't have null name */
+	if (strncmp(name,(char*)0,strlen(name)) == 0) return -1; /* can't have null name */
 
 	for (int i = 0;  i < SHM_MAXNUM; i++) {
 		cur_name = p->shared_mem[i].name;
@@ -440,7 +444,7 @@ shm_get(char *name)
 			new_shmem = &p->shared_mem[i];
 		}
 //		if (strncmp(cur_name,(char*)0,sizeof((char*)0)) == 0) new_shmem = &p->shared_mem[i];
-		if (strncmp(cur_name,name,sizeof(name)) == 0) {cprintf("already have this page\n"); return -1;} /* proc already holds shmem */
+		if (strncmp(cur_name,name,strlen(name)) == 0) {cprintf("already have this page\n"); return -1;} /* proc already holds shmem */
 	}
 
 //	if (new_shmem == (struct shmem*)0) return -1; /* proc at SHM_MAXNUM shmem pages */
@@ -454,12 +458,13 @@ shm_get(char *name)
 	acquire(&shm_list.lock);
 	free_ptr.ptr = shm_list.list;
 	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
-		if (!(free_ptr.set || ptr->refcount)) {
+		if (!(free_ptr.set || ptr->in_use)) {
 			free_ptr.ptr = ptr;
 			free_ptr.set = 1;		
 		}
 		
-		if (strncmp(ptr->name, name, sizeof(name)) == 0) {
+		if (strncmp(ptr->name, name, strlen(name)) == 0) {
+			cprintf("found %s\n",ptr->name);
 			found = 1;
 			break;
 		}
@@ -486,6 +491,7 @@ shm_get(char *name)
 			return -1; /* already at SHM_MAXNUM pages */
 		}
 		ptr = free_ptr.ptr;
+		ptr->in_use = 1;
 		
 		a = PGROUNDUP(p->sz);
 		pgdir = p->pgdir;
@@ -543,7 +549,7 @@ found_page:
 	/* releasing existing shared mem */
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		cur_name = cur_proc->shared_mem[i].name;
-		if (strncmp(cur_name,name,sizeof(name)) == 0) {
+		if (strncmp(cur_name,name,strlen(name)) == 0) {
 			proc_ptr = &cur_proc->shared_mem[i];
 			break;
 		}
@@ -559,12 +565,14 @@ found_page:
 		char *v = P2V(pa);
 		kfree(v);
 		ptr->pa = -1;
-		strncpy(ptr->name,"",sizeof(ptr->name));
+		ptr->in_use = 0;
+		strncpy(ptr->name,"",strlen(ptr->name));
 		return 0;
 	}
+
 	if ((*pte & PTE_P) != 0) *pte = 0; /* unmap page */
 
-	strncpy(proc_ptr->name,"",sizeof(proc_ptr->name));
+	strncpy(proc_ptr->name,"",strlen(proc_ptr->name));
 	proc_ptr->va = (char*)-1;
 	ptr->refcount--;
 	cur_proc->sz -= PGSIZE;

@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "cm.h"
+#include "shmem.h"
 
 struct {
 	struct spinlock lock;
@@ -258,6 +259,7 @@ exit(void)
 	}
 
 	// remove shared mem
+
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		if (curproc->shared_mem[i].in_use) {
 			shm_rem(curproc->shared_mem[i].name);

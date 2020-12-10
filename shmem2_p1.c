@@ -5,10 +5,10 @@ int
 main(void)
 {
         printf(1,"TESTING PASSING BETWEEN PROCS IN DIFF ANCESTRY:\n");
-        char *shmem_addr = shm_get("test2");
+        char *shmem_start = shm_get("test2");
         printf(1,"      setting shared mem 'test2' to 'from_prog1'\n");
         char *var = "from_prog1";
-        strcpy(shmem_addr,var);
+        strcpy(shmem_start,var);
         while(1);
         exit();
 }

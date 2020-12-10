@@ -10,9 +10,12 @@ main(void)
         printf(1,"      got shared mem page 'test3'\n");
         *shm_addr = 12;
         printf(1,"      set value @ first addr of page to %d\n",*shm_addr);
-        shm_rem("test3");
+        if (shm_rem("test3") == -1) {
+                printf(1,"ERROR REMOVING\n");
+                exit();
+        }
         printf(1,"      called shm_rem('test3')\n");
-        printf(1,"      trying to get value from shared page:\n");
-        printf(1,"              value @ first addr of page:%d\n",*shm_addr);
+        printf(1,"      trying to get value from shared page\n");
+        printf(1,"      value @ first addr of page:%d\n",*shm_addr);
         exit();
 }
