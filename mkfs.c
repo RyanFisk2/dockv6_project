@@ -83,13 +83,13 @@ main(int argc, char *argv[])
 
 	assert((BSIZE % sizeof(struct dinode)) == 0);
 	assert((BSIZE % sizeof(struct dirent)) == 0);
-
+	printf("pre open\n");
 	fsfd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC, 0666);
 	if (fsfd < 0) {
 		perror(argv[1]);
 		exit(1);
 	}
-
+	printf("post open\n");
 	// 1 fs block = 1 disk sector
 	nmeta   = 2 + nlog + ninodeblocks + nbitmap;
 	nblocks = FSSIZE - nmeta;

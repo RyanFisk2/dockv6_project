@@ -20,6 +20,7 @@ main()
         //new syscall to copy files to directory
         
         copy_file("container", "ls");
+        copy_file("container", "sh");
         copy_file("container", "cat");
         copy_file("container", "echo");
         copy_file("container", "nproc_test2");

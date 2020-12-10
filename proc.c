@@ -35,6 +35,7 @@ pinit(void)
 {
 	initlock(&ptable.lock, "ptable");
 	struct proc *p;
+	
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 		p->container_id = 0;
 	}
@@ -112,6 +113,7 @@ allocproc(void)
 found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
+	p->container_id = 0;
 
 	memset(p->shared_mem,0,sizeof(p->shared_mem));
 
@@ -166,6 +168,7 @@ userinit(void)
 
 	safestrcpy(p->name, "initcode", sizeof(p->name));
 	p->cwd = namei("/");
+	p->container_id = 0;
 
 	// this assignment to p->state lets other cores
 	// run this process. the acquire forces the above
@@ -585,21 +588,24 @@ cm_create_and_enter(char *init, char *fs, int nproc)
 found:
 	c->container_id = nextcid++;
 	release(&containers.lock);
-	cm_setroot(fs,strlen(fs),c);
+	
 
 	//parent = namei("..");
 
 	curproc -> container = c;
-	curproc -> container_id = c -> container_id;
-	cm_maxproc(nproc);
 
 	//set root for container
 	/*TODO: set '..' and '/' to limit visibility of outside directories*/
-	curproc->cwd = idup(c->root);
+	
 	begin_op();
+	cm_setroot(fs,strlen(fs),c);
+	curproc->cwd = idup(c->root);
 	//dirlink(c->root, "..", parent->inum);
 	//dirlink(c->root, "/", 1);
 	end_op();
+
+	curproc -> container_id = c -> container_id;
+	cm_maxproc(nproc);
 
 	int child = fork();
 	if (child != 0) {
@@ -647,7 +653,8 @@ cm_setroot(char* path, int path_len, struct container *container)
 	if (path_len <= 0) return -1;
 	root_node = namei(path);
 	
-	container->root = root_node;
+	memmove(&container->root,&root_node, sizeof(root_node));
+//	container->root = root_node;
 	
 	return 1;
 }

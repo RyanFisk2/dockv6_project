@@ -20,6 +20,8 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
+#include "cm.h"
+#include "x86.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode *);
@@ -288,7 +290,10 @@ ilock(struct inode *ip)
 	struct buf *   bp;
 	struct dinode *dip;
 
-	if (ip == 0 || ip->ref < 1) panic("ilock");
+	if (ip == 0 || ip->ref < 1) {
+		cprintf("pid:%d ip:%p ref:%d\n",myproc()->pid,ip,ip->ref);
+		panic("ilock");
+	}
 
 	acquiresleep(&ip->lock);
 
@@ -602,12 +607,34 @@ namex(char *path, int nameiparent, char *name)
 {
 	struct inode *ip, *next;
 
-	if (*path == '/')
+	ip = 0;
+	struct proc *p;
+	if ( (p = myproc()) != 0) {
+		if (p->container_id > 0) {
+			if ((*path == '/')) {
+				ip = idup(p->container->root);
+			//	ip = p->container->root;
+//				cprintf("path=/ ip=%p\n",ip);
+			} else{
+				ip = idup(myproc()->cwd);
+//				cprintf("path !=/ ip=%p\n",ip);
+			}
+		} else{
+			if (*path == '/'){
+				ip = iget(ROOTDEV, ROOTINO);
+			} else{
+				ip = idup(myproc()->cwd);
+			}
+		}
+	} else 
+	if (*path == '/') {
 		ip = iget(ROOTDEV, ROOTINO);
-	else
+	} else {
 		ip = idup(myproc()->cwd);
+	}
 
 	while ((path = skipelem(path, name)) != 0) {
+		if (ip->ref < 1) return 0;
 		ilock(ip);
 		if (ip->type != T_DIR) {
 			iunlockput(ip);
@@ -619,6 +646,10 @@ namex(char *path, int nameiparent, char *name)
 			return ip;
 		}
 		if ((next = dirlookup(ip, name, 0)) == 0) {
+			iunlockput(ip);
+			return 0;
+		}
+		if (next->ref < 1) {
 			iunlockput(ip);
 			return 0;
 		}
@@ -634,7 +665,7 @@ namex(char *path, int nameiparent, char *name)
 
 struct inode *
 namei(char *path)
-{
+{	
 	char name[DIRSIZ];
 	return namex(path, 0, name);
 }
