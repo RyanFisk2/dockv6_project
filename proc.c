@@ -23,7 +23,7 @@ struct {
 	struct container Arr[MAX_NUM_CONTAINERS];
 } containers;
 
-struct 
+struct {
 	struct spinlock lock;
 	struct mutex 	mux[MUX_MAXNUM];
 } mtable;
@@ -43,8 +43,6 @@ pinit(void)
 {
 	struct proc *p;
 	initlock(&ptable.lock, "ptable");
-
-	struct proc *p;
 	
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 		p->container_id = 0;
@@ -55,7 +53,7 @@ void
 cinit(void)
 {
 	initlock(&containers.lock, "containers");
-  initlock(&mtable.lock, "mtable");
+  	initlock(&mtable.lock, "mtable");
 	struct container *c;
 	for(c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++){
 		c->container_id = -1;

@@ -28,7 +28,6 @@ OBJS = \
 	vectors.o\
 	vm.o\
 
-
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
 
@@ -189,7 +188,7 @@ UPROGS=\
 	_nproc_test1\
 	_nproc_test2\
 	_nproc_test3\
-  _mutex_test1\
+  	_mutex_test1\
 
 fs.img: mkfs README container_config.json nproc_test.json $(UPROGS)
 	./mkfs fs.img README container_config.json nproc_test.json $(UPROGS)
@@ -260,8 +259,7 @@ EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
-	README container_config.json nproc_test.json dot-bochsrc *.pl toc.* runoff runoff1 runoff.list mutex_test1.c\
-
+	README container_config.json nproc_test.json dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
 dist:
