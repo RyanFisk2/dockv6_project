@@ -253,6 +253,7 @@ fork(void)
 		strncpy(newproc_shmem->name,parent_shmem->name,strlen(parent_shmem->name));
 		newproc_shmem->va = parent_shmem->va;
 		newproc_shmem->global_ptr = parent_shmem->global_ptr;
+		newproc_shmem->global_ptr->refcount++;
 	}
 
 	// Clear %eax so that fork returns 0 in the child.
@@ -299,6 +300,7 @@ exit(void)
 
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		if (curproc->shared_mem[i].in_use) {
+			cprintf("shared page %s in use\n",curproc->shared_mem[i].name);
 			shm_rem(curproc->shared_mem[i].name);
 		}
 	}
