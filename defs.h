@@ -120,6 +120,12 @@ void         userinit(void);
 int          wait(void);
 void         wakeup(void *);
 void         yield(void);
+int          mutex_create(char *name);
+void         mutex_delete(int muxid);
+void         mutex_lock(int muxid);
+void         mutex_unlock(int muxid);
+void         cv_wait(int muxid);
+void         cv_signal(int muxid);
 
 // swtch.S
 void swtch(struct context **, struct context *);
