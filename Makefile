@@ -175,6 +175,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_sched_test\
+	_sched_test2\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
