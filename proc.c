@@ -287,7 +287,7 @@ fork(void)
 	struct proc *np;
 	struct shmem *newproc_shmem, *parent_shmem;
 	struct proc *curproc = myproc();
-	
+
 	// Allocate process.
 	if (curproc -> container_id)
 	{
@@ -395,7 +395,7 @@ exit(void)
 
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		if (curproc->shared_mem[i].in_use) {
-			cprintf("shared page %s in use\n",curproc->shared_mem[i].name);
+		//	cprintf("shared page %s in use\n",curproc->shared_mem[i].name);
 			shm_rem(curproc->shared_mem[i].name);
 		}
 	}
@@ -480,6 +480,7 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+
 void
 scheduler(void)
 {
