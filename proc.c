@@ -641,12 +641,11 @@ found:
 
 	int child = fork();
 	if (child != 0) {
-		/*CM waits for init to finish*/   
 		wait();
-
+		curproc->container_id = 0;
 		return 1;
-	} 
-	
+	}
+
 	return 0;
 }
 

@@ -13,8 +13,8 @@ create_and_enter(char *init, char* fs, int nproc)
 {
         char *argv[] = {"", 0};
         int child = cm_create_and_enter(init, fs, nproc);
-
-        if(child) exec(init, argv);
+        
+        if(!(child)) exec(init, argv);
         
         exit();
 }
