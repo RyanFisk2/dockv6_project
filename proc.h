@@ -82,7 +82,14 @@ struct proc {
 	struct container *container;	//holds the container id of the container this proc is in (0 == global or CM, >1 == in a container)
 	uint	          container_id;
 	struct mutex *	  mutex[MUX_MAXNUM];// Which locks this process has access to
+	uint		  priority;
+	struct proc *     next;
+};
 
+struct list {
+	struct proc *head;
+	struct proc *tail;
+	int	     size;
 };
 
 // Process memory is laid out contiguously, low addresses first:

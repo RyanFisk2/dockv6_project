@@ -114,6 +114,7 @@ int          growproc(int);
 int          kill(int);
 struct cpu * mycpu(void);
 struct proc *myproc();
+void         queueinit(void);
 void         pinit(void);
 void         procdump(void);
 void         scheduler(void) __attribute__((noreturn));
@@ -133,6 +134,7 @@ void         mutex_lock(int muxid);
 void         mutex_unlock(int muxid);
 void         cv_wait(int muxid);
 void         cv_signal(int muxid);
+int          prio_set(int pid, int priority);
 
 // swtch.S
 void swtch(struct context **, struct context *);

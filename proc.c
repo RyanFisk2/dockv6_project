@@ -13,6 +13,10 @@
 #include "shmem.h"
 #include "cas.h"
 
+#ifndef NBIN
+#define NBIN 16
+#endif
+
 struct {
 	struct spinlock lock;
 	struct proc     proc[NPROC];
@@ -28,6 +32,9 @@ struct {
 	struct mutex 	mux[MUX_MAXNUM];
 } mtable;
 
+struct {
+	struct list Arr[NBIN];
+} pqueue;
 
 static struct proc *initproc;
 
@@ -37,6 +44,59 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+void
+print_prio_bin(int priority)
+{
+	struct proc *p;
+	cprintf("printing prioqueue[%d]\n",priority);
+	p = pqueue.Arr[priority].head;
+	while (p != (struct proc*)0) {
+		cprintf("pid: %d\n",p->pid);
+		p = p->next;
+	}
+/*
+	cprintf("printing prioqueue[0]\n");
+	p = pqueue.Arr[0].head;
+	while (p != (struct proc*)0) {
+		cprintf("pid: %d\n",p->pid);
+		p = p->next;
+	}
+*/
+}
+
+void
+pqueue_enqueue(struct proc *p, uint priority)
+{
+	p->priority = priority;
+	acquire(&pqueue.lock);
+	struct list *bin = &pqueue.Arr[priority];
+
+	//cprintf("adding to bin %d\n", priority);
+	if (bin->head == (struct proc *)0) {
+		bin->head = bin->tail = p;
+
+	} else{
+		bin->tail->next = p;
+		bin->tail = p;
+	}
+	bin->size++;
+
+	p->next = (struct proc*)0;
+	release(&pqueue.lock);
+
+}
+
+void
+queueinit(void)
+{
+	initlock(&pqueue.lock, "pqueue");
+	for (int i = 0; i < NBIN; i++) {
+		pqueue.Arr[i].head = (struct proc*)0;
+		pqueue.Arr[i].tail = (struct proc*)0;
+		pqueue.Arr[i].size = 0;
+	}
+}
 
 void
 pinit(void)
@@ -107,7 +167,7 @@ myproc(void)
 // state required to run in the kernel.
 // Otherwise return 0.
 static struct proc *
-allocproc(void)
+allocproc(uint priority)
 {
 	struct proc *p;
 	char *       sp;
@@ -123,6 +183,7 @@ allocproc(void)
 found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
+	pqueue_enqueue(p,priority);
 
 	p->container_id = 0;
 
@@ -155,7 +216,6 @@ found:
 	p->context = (struct context *)sp;
 	memset(p->context, 0, sizeof *p->context);
 	p->context->eip = (uint)forkret;
-
 	return p;
 }
 
@@ -167,7 +227,7 @@ userinit(void)
 	struct proc *p;
 	extern char  _binary_initcode_start[], _binary_initcode_size[];
 
-	p = allocproc();
+	p = allocproc(0);
 
 	initproc = p;
 	if ((p->pgdir = setupkvm()) == 0) panic("userinit: out of memory?");
@@ -222,6 +282,7 @@ growproc(int n)
 int
 fork(void)
 {
+//	cprintf("fork\n");
 	int          i, pid;
 	struct proc *np;
 	struct shmem *newproc_shmem, *parent_shmem;
@@ -241,7 +302,7 @@ fork(void)
 		}
 	}
 
-	if ((np = allocproc()) == 0) {
+	if ((np = allocproc(curproc->priority)) == 0) {
 		return -1;
 	}
 
@@ -298,7 +359,29 @@ exit(void)
 	struct proc *p;
 	int          fd;
 
+
+
 	if (curproc == initproc) panic("init exiting");
+/*
+	struct proc *ptr = pqueue.Arr[curproc->priority].head;
+
+	acquire(&pqueue.lock);
+	while (ptr->next != (struct proc*)0) {
+		if (ptr->next->pid == curproc->pid) {
+			break;
+		}
+		ptr = ptr->next;
+	}
+
+	if (ptr != (struct proc*)0) {
+		if (ptr->next != (struct proc*)0) {
+			ptr->next = ptr->next->next;
+		} else{
+			ptr->next = (struct proc*)0;
+		}
+	}
+	release(&pqueue.lock);
+*/
 
 	// Close all open files.
 	for (fd = 0; fd < NOFILE; fd++) {
@@ -335,7 +418,6 @@ exit(void)
 		}
 	}
 
-	// Jump into the scheduler, never to return.
 	curproc->state = ZOMBIE;
 	sched();
 	panic("zombie exit");
@@ -349,7 +431,7 @@ wait(void)
 	struct proc *p;
 	int          havekids, pid;
 	struct proc *curproc = myproc();
-
+//	cprintf("wait -- pid: %d\n",curproc->pid);
 	acquire(&ptable.lock);
 	for (;;) {
 		// Scan through table looking for exited children.
@@ -404,29 +486,47 @@ scheduler(void)
 	struct proc *p;
 	struct cpu * c = mycpu();
 	c->proc        = 0;
+	struct list *bin;
+//	int foundproc = 0;
 
 	for (;;) {
+start:
 		// Enable interrupts on this processor.
 		sti();
 
 		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
-		for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-			if (p->state != RUNNABLE) continue;
+//		acquire(&pqueue.lock);
+		for (int i = 0; i < NBIN; i++) {
+			bin = &pqueue.Arr[i];
+			if (bin->head != (struct proc*)0) {			
+				
+				p = bin->head;
+				while (p != (struct proc*)0) {
+					if (p->state == RUNNABLE) {
+						for (int j = 0; j < NCPU; j++) {
+							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
+								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING /*|| cpus[j].proc->state*/)) {
+									i = 0;
+									release(&ptable.lock);
+									goto start;
+								}						
+							}
+						}
+						c->proc = p;
+						i = 0;
+						switchuvm(p);
+						p->state = RUNNING;
 
-			// Switch to chosen process.  It is the process's job
-			// to release ptable.lock and then reacquire it
-			// before jumping back to us.
-			c->proc = p;
-			switchuvm(p);
-			p->state = RUNNING;
-
-			swtch(&(c->scheduler), p->context);
-			switchkvm();
-
-			// Process is done running for now.
-			// It should have changed its p->state before coming back.
-			c->proc = 0;
+						swtch(&(c->scheduler),p->context);
+						
+						switchkvm();
+						c->proc = 0;				
+					}
+					
+					p = p->next;
+				}
+			}
 		}
 		release(&ptable.lock);
 	}
@@ -444,7 +544,6 @@ sched(void)
 {
 	int          intena;
 	struct proc *p = myproc();
-
 	if (!holding(&ptable.lock)) panic("sched ptable.lock");
 	if (mycpu()->ncli != 1) panic("sched locks");
 	if (p->state == RUNNING) panic("sched running");
@@ -879,4 +978,63 @@ void cv_signal(int muxid){
 		}
 	}
 	return;
+}
+
+int
+prio_set(int pid, int priority)
+{
+	struct proc *p = (struct proc*)0;
+	struct list *bin;
+	struct proc *proc = (struct proc*)0;
+	struct proc *temp, *temp_parent;
+	struct proc *curproc = myproc();
+
+	acquire(&ptable.lock);
+	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+		if (p->pid == pid) break;
+	}
+	release(&ptable.lock);
+
+	if (p->pid != pid) return -1; /* no proc w/ given pid */
+
+//	cprintf("check1\n");
+	if (priority == p->priority) return 0; /* no point in setting prio to current prio */
+	if (priority < p->priority) {
+//		cprintf("pid:%d prio:%d\n",p->pid,p->priority);
+		return -1; /* cant set priority higher than curr priority */
+	}
+//	cprintf("check2\n");
+	if (p == (struct proc*)0) return -1; /* no proc w/ given pid exists */
+	temp = p;
+	if (pid != curproc->pid) {
+		while(1) {
+			if (temp == (struct proc*)0) return -1;
+			temp_parent = temp->parent;
+			if (temp_parent == curproc) break;
+			if (temp_parent == initproc) return -1; /* calling proc not in ancestry */
+			temp = temp_parent;
+		}
+	}
+	acquire(&pqueue.lock);
+	for (int i = 0; i < NBIN; i++) {
+		bin = &pqueue.Arr[i];
+		if ( (p = bin->head) == (struct proc*)0) continue;
+		if (p->pid == pid) {
+			proc = p;
+			break;
+		}
+		while (p->next != (struct proc*)0) {
+			if (p->next->pid == pid) {
+				proc = p->next;
+				p->next = p->next->next; /* remove proc from old bin */
+				break;
+			}
+			p = p->next;
+		}
+	}
+	release(&pqueue.lock);
+	pqueue_enqueue(proc,priority); /* add proc to new bin */
+//	cprintf("curpid:%d\n",myproc()->pid);
+//	print_prio_bin(priority);
+	return 0;
 }
