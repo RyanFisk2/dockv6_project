@@ -562,7 +562,7 @@ shm_rem(char *name)
 //	cprintf("in rem\n");
 	acquire(&shm_list.lock);
 	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
-		if (strncmp(ptr->name, name, strlen(name)) == 0 /*&& ptr->container_id == cur_proc->container_id*/) {
+		if (strncmp(ptr->name, name, strlen(name)) == 0 && ptr->container_id == cur_proc->container_id) {
 //			cprintf("page %s has containerid %d curproc(pid %d) has containerid %d\n",name,ptr->container_id,cur_proc->pid,cur_proc->container_id);
 			goto found_page;
 		}
@@ -600,7 +600,7 @@ found_page:
 		proc_ptr->va = (char*)-1;
 		cur_proc->sz -= PGSIZE;
 
-//		cprintf("last %s has refcount %d\n",ptr->name,ptr->refcount);
+		cprintf("last %s has refcount %d\n",ptr->name,ptr->refcount);
 		strncpy(ptr->name,"",strlen(ptr->name));
 		return 0;
 	}
@@ -610,7 +610,7 @@ found_page:
 	strncpy(proc_ptr->name,"",strlen(proc_ptr->name));
 	proc_ptr->va = (char*)-1;
 	ptr->refcount--;
-//	cprintf("not last %s has refcount %d\n",ptr->name,ptr->refcount);
+	cprintf("not last %s has refcount %d\n",ptr->name,ptr->refcount);
 	cur_proc->sz -= PGSIZE;
 	return 0;
 }
