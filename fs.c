@@ -616,6 +616,7 @@ namex(char *path, int nameiparent, char *name)
 
 	if ( (p = myproc()) != 0) {
 		if (p->container_id > 0) {
+			if (strncmp(path,"..",sizeof("..")) == 0) strncpy(path,".",sizeof("."));
 			if ((*path == '/')) {
 				ip = idup(p->container->root);
 			} else{

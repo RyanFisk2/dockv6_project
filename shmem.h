@@ -5,4 +5,5 @@ struct shared_mem{
         uint pa;
         uint refcount;
         uint in_use;
+        int container_id;
 };

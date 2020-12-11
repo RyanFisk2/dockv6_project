@@ -24,6 +24,7 @@ main()
         copy_file("container", "cat");
         copy_file("container", "echo");
         copy_file("container", "nproc_test2");
+        copy_file("container", "shmem_testp2");
 
 
 

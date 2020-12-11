@@ -31,6 +31,7 @@ init_shm_list(void)
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		shm_list.list[i].refcount = 0;
 		shm_list.list[i].in_use = 0;
+		shm_list.list[i].container_id = 0;
 	}
 //	memset(&shm_list.list->refcount,0,SHM_MAXNUM);
 	release(&shm_list.lock);
@@ -463,7 +464,7 @@ shm_get(char *name)
 			free_ptr.set = 1;		
 		}
 		
-		if (strncmp(ptr->name, name, strlen(name)) == 0) {
+		if (strncmp(ptr->name, name, strlen(name)) == 0 && ptr->container_id == p->container_id) {
 			cprintf("found %s\n",ptr->name);
 			found = 1;
 			break;
@@ -524,6 +525,7 @@ shm_get(char *name)
 	new_shmem->in_use = 1;
 
 	ptr->refcount++;
+	ptr->container_id = p->container_id;
 
 	return ret_val;
 }
@@ -561,9 +563,9 @@ found_page:
 	pde_t *pte = walkpgdir(cur_proc->pgdir,proc_ptr->va,0);
 
 	if (ptr->refcount == 1) { /* curproc is only proc holding shmem -- deallocate mem */
-		uint pa = PTE_ADDR(*pte);
-		char *v = P2V(pa);
-		kfree(v);
+	//	uint pa = PTE_ADDR(*pte);
+	//	char *v = P2V(pa);
+	//	kfree(v);
 		ptr->pa = -1;
 		ptr->in_use = 0;
 		strncpy(ptr->name,"",strlen(ptr->name));

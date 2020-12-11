@@ -46,6 +46,6 @@ main ()
 
         create_and_enter(init, fs, nproc);
 
-        wait();
+        while(1);
         exit();
 }
