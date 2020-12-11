@@ -14,7 +14,7 @@ main(void)
                         wait();
                         exit();
                 }
-                if (prio_set(pid2,2) == -1) {
+                if (prio_set(pid2,1) == -1) {
                         printf(1,"set fail\n");
                         wait();
                         wait();
