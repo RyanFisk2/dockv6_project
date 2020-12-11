@@ -38,7 +38,8 @@ struct mutex {
 	int		    	pid; 	 // pid of who locked this lock
     char*           name;    // name of lock
 	int				refcount;	// Number of processes that can reference this mutex
-	int 			container_id;	// container id, 0 if none?
+	int 			container_id;	// container id, 0 if global (normal xv6 environment), >0 if in container
+	int				cv;				// this thingy
 };
 
 enum procstate
@@ -67,6 +68,7 @@ struct proc {
 	struct inode *    cwd;           // Current directory
 	char              name[16];      // Process name (debugging)
 	struct mutex *	  mutex[MUX_MAXNUM];// Which locks this process has access to
+	int 		  container_id;  //id of procs container (0 == global/no container, >0 == in container)
 };
 
 // Process memory is laid out contiguously, low addresses first:
