@@ -10,6 +10,8 @@
 #include "cm.h"
 #include "fs.h"
 #include "file.h"
+#include "shmem.h"
+
 
 struct {
 	struct spinlock lock;
@@ -115,7 +117,9 @@ found:
 	p->pid   = nextpid++;
 	p->container_id = 0;
 
-	memset(p->shared_mem,0,sizeof(p->shared_mem));
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		p->shared_mem[i].in_use = 0;
+	}
 
 	release(&ptable.lock);
 
@@ -208,6 +212,7 @@ fork(void)
 {
 	int          i, pid;
 	struct proc *np;
+	struct shmem *newproc_shmem, *parent_shmem;
 	struct proc *curproc = myproc();
 
 	// Allocate process.
@@ -240,6 +245,15 @@ fork(void)
 	*np->tf    = *curproc->tf;
 	np -> container = curproc -> container;
 	np -> container_id = curproc -> container_id;
+
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		newproc_shmem = &np->shared_mem[i];
+		parent_shmem = &curproc->shared_mem[i];
+		newproc_shmem->in_use = parent_shmem->in_use;
+		strncpy(newproc_shmem->name,parent_shmem->name,strlen(parent_shmem->name));
+		newproc_shmem->va = parent_shmem->va;
+		newproc_shmem->global_ptr = parent_shmem->global_ptr;
+	}
 
 	// Clear %eax so that fork returns 0 in the child.
 	np->tf->eax = 0;
@@ -278,6 +292,14 @@ exit(void)
 		if (curproc->ofile[fd]) {
 			fileclose(curproc->ofile[fd]);
 			curproc->ofile[fd] = 0;
+		}
+	}
+
+	// remove shared mem
+
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		if (curproc->shared_mem[i].in_use) {
+			shm_rem(curproc->shared_mem[i].name);
 		}
 	}
 
