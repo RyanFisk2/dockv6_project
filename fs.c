@@ -20,6 +20,8 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
+#include "cm.h"
+#include "x86.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode *);
@@ -288,7 +290,10 @@ ilock(struct inode *ip)
 	struct buf *   bp;
 	struct dinode *dip;
 
-	if (ip == 0 || ip->ref < 1) panic("ilock");
+	if (ip == 0 || ip->ref < 1) {
+		cprintf("pid:%d ip:%p ref:%d\n",myproc()->pid,ip,ip->ref);
+		panic("ilock");
+	}
 
 	acquiresleep(&ip->lock);
 
@@ -531,6 +536,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
 
 // Write a new directory entry (name, inum) into the directory dp.
 int
+
 dirlink(struct inode *dp, char *name, uint inum)
 {
 	int           off;
@@ -601,12 +607,37 @@ namex(char *path, int nameiparent, char *name)
 {
 	struct inode *ip, *next;
 
-	if (*path == '/')
+	ip = 0;
+	struct proc *p;
+	
+	/*
+	 * if we are in a container, return the container root instead of absolute root
+	 */
+
+	if ( (p = myproc()) != 0) {
+		if (p->container_id > 0) {
+			if (strncmp(path,"..",sizeof("..")) == 0) strncpy(path,".",sizeof("."));
+			if ((*path == '/')) {
+				ip = idup(p->container->root);
+			} else{
+				ip = idup(myproc()->cwd);
+			}
+		} else{
+			if (*path == '/'){
+				ip = iget(ROOTDEV, ROOTINO);
+			} else{
+				ip = idup(myproc()->cwd);
+			}
+		}
+	} else 
+	if (*path == '/') {
 		ip = iget(ROOTDEV, ROOTINO);
-	else
+	} else {
 		ip = idup(myproc()->cwd);
+	}
 
 	while ((path = skipelem(path, name)) != 0) {
+		if (ip->ref < 1) return 0;
 		ilock(ip);
 		if (ip->type != T_DIR) {
 			iunlockput(ip);
@@ -618,6 +649,10 @@ namex(char *path, int nameiparent, char *name)
 			return ip;
 		}
 		if ((next = dirlookup(ip, name, 0)) == 0) {
+			iunlockput(ip);
+			return 0;
+		}
+		if (next->ref < 1) {
 			iunlockput(ip);
 			return 0;
 		}
@@ -633,7 +668,7 @@ namex(char *path, int nameiparent, char *name)
 
 struct inode *
 namei(char *path)
-{
+{	
 	char name[DIRSIZ];
 	return namex(path, 0, name);
 }
@@ -643,3 +678,24 @@ nameiparent(char *path, char *name)
 {
 	return namex(path, 1, name);
 }
+
+/*
+ * used by dockv6_init to copy files to the container directory
+ */
+int
+copy_file(char *dir, char *file)
+{
+	struct inode *dir_inode;
+	struct inode *file_inode;
+
+	dir_inode = namei(dir);
+	file_inode = namei(file);
+
+	if(dirlink(dir_inode, file, file_inode->inum) < 0)
+	{
+		cprintf("dirlink fail\n");
+		return 0;
+	}
+	return 1;
+}
+

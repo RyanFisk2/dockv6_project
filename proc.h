@@ -1,3 +1,7 @@
+#ifndef SHM_MAXNUM
+#define SHM_MAXNUM 4
+#endif
+
 // Per-CPU state
 struct cpu {
 	uchar            apicid;     // Local APIC ID
@@ -32,11 +36,18 @@ struct context {
 	uint eip;
 };
 
+struct shmem {
+	int  in_use;
+	char name[16];
+	char* va;
+	struct shared_mem *global_ptr;
+};
+
 struct mutex {
 	uint 			locked;   // Is the lock held? 0 if not, 1 if it is
 	int	    		isAlloc; // 0 if false, 1 if true
 	int		    	pid; 	 // pid of who locked this lock
-    char*           name;    // name of lock
+   char*           name;    // name of lock
 	int				refcount;	// Number of processes that can reference this mutex
 	int 			container_id;	// container id, 0 if global (normal xv6 environment), >0 if in container
 	int				cv;				// this thingy
@@ -67,8 +78,11 @@ struct proc {
 	struct file *     ofile[NOFILE]; // Open files
 	struct inode *    cwd;           // Current directory
 	char              name[16];      // Process name (debugging)
+	struct shmem	  shared_mem[SHM_MAXNUM]; //virtual addresses for the shared memory mapped into this proc
+	struct container *container;	//holds the container id of the container this proc is in (0 == global or CM, >1 == in a container)
+	uint	          container_id;
 	struct mutex *	  mutex[MUX_MAXNUM];// Which locks this process has access to
-	int 		  container_id;  //id of procs container (0 == global/no container, >0 == in container)
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

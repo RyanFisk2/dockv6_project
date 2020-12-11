@@ -86,6 +86,50 @@ sys_uptime(void)
 	return xticks;
 }
 
+
+int
+sys_m_get(void)
+{
+	char *name;
+
+	if (argptr(0,(char**)&name,sizeof(name)) < 0 ) return -1;
+
+
+	return shm_get(name);
+}
+
+int
+sys_m_rem(void)
+{
+	char *name;
+
+	if (argptr(0,(char**)&name,sizeof(name)) < 0) return -1;
+
+	return shm_rem(name);
+}
+
+int
+sys_cm_create_and_enter(void)
+{
+	char *init, *fs;
+	int nproc;
+
+	if ((argstr(0, &init) < 0) || (argstr(1, &fs) < 0) || (argint(2, &nproc) < 0)) return -1;
+	return cm_create_and_enter(init, fs, nproc);
+}
+
+int
+sys_cm_maxproc(void)
+{
+	int nproc;
+
+	if(argint(0, &nproc) < 0){
+		return -1;
+	}
+
+	return cm_maxproc(nproc);
+}
+
 int sys_mutex_create(void){
 	char *name;
 	if(argstr(0, &name) < 0) return -1;
@@ -131,3 +175,4 @@ void sys_cv_signal(void){
 	cv_signal(muxid);
 	return;
 }
+

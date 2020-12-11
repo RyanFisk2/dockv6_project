@@ -22,6 +22,14 @@ strcmp(const char *p, const char *q)
 	return (uchar)*p - (uchar)*q;
 }
 
+int
+strncmp(const char *p, const char *q, uint n)
+{
+	while (n > 0 && *p && *p == *q) n--, p++, q++;
+	if (n == 0) return 0;
+	return (uchar)*p - (uchar)*q;
+}
+
 uint
 strlen(char *s)
 {
@@ -95,4 +103,22 @@ memmove(void *vdst, void *vsrc, int n)
 	src = vsrc;
 	while (n-- > 0) *dst++= *src++;
 	return vdst;
+}
+
+char*
+shm_get(char *name)
+{
+	int ret_val;
+
+	if ( (ret_val = m_get(name)) < 0) return (char*)0;
+
+	return (char*) ret_val;
+}
+
+int
+shm_rem(char *name)
+{
+	if (m_rem(name) < 0) return -1;
+
+	return 0;
 }

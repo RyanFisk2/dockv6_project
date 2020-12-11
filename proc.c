@@ -6,6 +6,11 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "cm.h"
+#include "fs.h"
+#include "file.h"
+#include "shmem.h"
 #include "cas.h"
 
 struct {
@@ -15,12 +20,19 @@ struct {
 
 struct {
 	struct spinlock lock;
+	struct container Arr[MAX_NUM_CONTAINERS];
+} containers;
+
+struct 
+	struct spinlock lock;
 	struct mutex 	mux[MUX_MAXNUM];
 } mtable;
+
 
 static struct proc *initproc;
 
 int         nextpid = 1;
+int	    nextcid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
@@ -31,10 +43,24 @@ pinit(void)
 {
 	struct proc *p;
 	initlock(&ptable.lock, "ptable");
-	initlock(&mtable.lock, "mtable");
 
+	struct proc *p;
+	
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-		p -> container_id = 0;
+		p->container_id = 0;
+	}
+}
+
+void
+cinit(void)
+{
+	initlock(&containers.lock, "containers");
+  initlock(&mtable.lock, "mtable");
+	struct container *c;
+	for(c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++){
+		c->container_id = -1;
+		c->nproc = -1;
+
 	}
 }
 
@@ -99,6 +125,13 @@ allocproc(void)
 found:
 	p->state = EMBRYO;
 	p->pid   = nextpid++;
+
+	p->container_id = 0;
+
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		p->shared_mem[i].in_use = 0;
+	}
+
 	release(&ptable.lock);
 
 	// Initialize proc's local mutex array
@@ -153,6 +186,7 @@ userinit(void)
 
 	safestrcpy(p->name, "initcode", sizeof(p->name));
 	p->cwd = namei("/");
+	p->container_id = 0;
 
 	// this assignment to p->state lets other cores
 	// run this process. the acquire forces the above
@@ -192,9 +226,23 @@ fork(void)
 {
 	int          i, pid;
 	struct proc *np;
+	struct shmem *newproc_shmem, *parent_shmem;
 	struct proc *curproc = myproc();
 
 	// Allocate process.
+	if (curproc -> container_id)
+	{
+
+		//in a container, need to limit number of forks
+		if(curproc->container->nproc == 0)
+		{
+			//reached limit on procs, return ERR
+			return -1;
+		}else{
+			curproc->container->nproc --;
+		}
+	}
+
 	if ((np = allocproc()) == 0) {
 		return -1;
 	}
@@ -209,6 +257,18 @@ fork(void)
 	np->sz     = curproc->sz;
 	np->parent = curproc;
 	*np->tf    = *curproc->tf;
+	np -> container = curproc -> container;
+	np -> container_id = curproc -> container_id;
+
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		newproc_shmem = &np->shared_mem[i];
+		parent_shmem = &curproc->shared_mem[i];
+		newproc_shmem->in_use = parent_shmem->in_use;
+		strncpy(newproc_shmem->name,parent_shmem->name,strlen(parent_shmem->name));
+		newproc_shmem->va = parent_shmem->va;
+		newproc_shmem->global_ptr = parent_shmem->global_ptr;
+		newproc_shmem->global_ptr->refcount++;
+	}
 
 	// Clear %eax so that fork returns 0 in the child.
 	np->tf->eax = 0;
@@ -247,6 +307,15 @@ exit(void)
 		if (curproc->ofile[fd]) {
 			fileclose(curproc->ofile[fd]);
 			curproc->ofile[fd] = 0;
+		}
+	}
+
+	// remove shared mem
+
+	for (int i = 0; i < SHM_MAXNUM; i++) {
+		if (curproc->shared_mem[i].in_use) {
+			cprintf("shared page %s in use\n",curproc->shared_mem[i].name);
+			shm_rem(curproc->shared_mem[i].name);
 		}
 	}
 
@@ -302,6 +371,12 @@ wait(void)
 				p->killed  = 0;
 				p->state   = UNUSED;
 				release(&ptable.lock);
+
+				if(curproc -> container_id)
+				{
+					//freed proc, so we can allocate another in this container
+					curproc -> container -> nproc ++;
+				}
 				return pid;
 			}
 		}
@@ -477,10 +552,11 @@ int
 kill(int pid)
 {
 	struct proc *p;
+	struct proc *curproc = myproc();
 
 	acquire(&ptable.lock);
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-		if (p->pid == pid) {
+		if ((p->pid == pid) && (p->container_id == curproc -> container_id)) {
 			p->killed = 1;
 			// Wake process from sleep if necessary.
 			if (p->state == SLEEPING) p->state = RUNNABLE;
@@ -519,6 +595,101 @@ procdump(void)
 		}
 		cprintf("\n");
 	}
+}
+
+
+/* BELOW ARE THE CONTAINER MANAGER SYS CALLS */
+
+/*
+ * create and enter checks for an open container to use (up to MAX_NUM_CONTAINERS)
+ * and initializes the initial process, file system root, and maximum child procs for the new container.
+ * Then forks a child to run the initial process while the parent (Container Manager) waits for it to finish.
+ * 
+ * Since fork returns to user space, this function returns a single integer to use as a boolean in cm.c
+ * returns 1 for the child process so we exec the init process, 0 for the parent so that we do not exec the init process twice
+ */
+int
+cm_create_and_enter(char *init, char *fs, int nproc)
+{
+
+	struct container *c;
+	struct proc *curproc = myproc();
+
+	acquire(&containers.lock);
+		for (c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++) {
+			if (c->container_id == -1) goto found;
+		}
+	release(&containers.lock);
+	cprintf("oh no\n");
+	return -1;
+
+found:
+	c->container_id = nextcid++;
+	release(&containers.lock);
+	
+
+
+	curproc -> container = c;
+
+	//set root for container
+	
+	begin_op();
+	cm_setroot(fs,strlen(fs),c);
+	curproc->cwd = idup(c->root);
+	end_op();
+
+	curproc -> container_id = c -> container_id;
+	cm_maxproc(nproc);
+
+	int child = fork();
+	if (child != 0) {
+		/*CM waits for init to finish*/   
+		wait();
+
+		return 1;
+	} 
+	
+	return 0;
+}
+
+int
+cm_maxproc(int nproc)
+{
+	if(nproc >= NPROC){
+		cprintf("ERR: cannot give more than NPROC to one container\n");
+		return -1;
+	}
+
+	struct proc *p = myproc();
+	struct container *c = p->container;
+
+	if ((c->nproc != -1) || (p->container_id == 0))
+	{
+		cprintf("ERR: nproc already set or not in container\n");
+		return -1;
+	}
+
+	cprintf("setting nproc to %d\n", nproc);
+
+	c -> nproc = nproc;
+
+	return 1;
+}
+
+/*
+ * setroot gets an inode for the given path, and sets the 
+ * root for the container to that inode
+ */
+int
+cm_setroot(char* path, int path_len, struct container *container)
+{
+	struct inode *root_node;
+	if (path_len <= 0) return -1;
+	root_node = namei(path);
+	
+	memmove(&container->root,&root_node, sizeof(root_node));
+	
+	return 1;
 }
 
 int mutex_create(char *name){
