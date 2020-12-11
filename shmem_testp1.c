@@ -11,7 +11,10 @@ main(void)
         printf(1,"TESTING PASSING BETWEEN CHILD PROC:\n");
         int pid = fork();
         if (pid != 0 ) {
-                shmem_addr = shm_get("test1");
+                if ( (shmem_addr = shm_get("test1")) == (char*)0) {
+                        printf(1,"get ERR\n");
+                        exit();
+                }
                 printf(1,"      parent forked\nparent called shm_get('test1')\n");
                 char *init = "sh";
                 char *fs = "/temp";

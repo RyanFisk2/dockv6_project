@@ -33,6 +33,7 @@ struct {
 } mtable;
 
 struct {
+	struct spinlock lock;
 	struct list Arr[NBIN];
 } pqueue;
 
@@ -282,12 +283,11 @@ growproc(int n)
 int
 fork(void)
 {
-//	cprintf("fork\n");
 	int          i, pid;
 	struct proc *np;
 	struct shmem *newproc_shmem, *parent_shmem;
 	struct proc *curproc = myproc();
-
+	
 	// Allocate process.
 	if (curproc -> container_id)
 	{
@@ -486,51 +486,85 @@ scheduler(void)
 	struct proc *p;
 	struct cpu * c = mycpu();
 	c->proc        = 0;
-	struct list *bin;
-//	int foundproc = 0;
 
 	for (;;) {
-start:
 		// Enable interrupts on this processor.
 		sti();
 
 		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
-//		acquire(&pqueue.lock);
-		for (int i = 0; i < NBIN; i++) {
-			bin = &pqueue.Arr[i];
-			if (bin->head != (struct proc*)0) {			
-				
-				p = bin->head;
-				while (p != (struct proc*)0) {
-					if (p->state == RUNNABLE) {
-						for (int j = 0; j < NCPU; j++) {
-							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
-								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING /*|| cpus[j].proc->state*/)) {
-									i = 0;
-									release(&ptable.lock);
-									goto start;
-								}						
-							}
-						}
-						c->proc = p;
-						i = 0;
-						switchuvm(p);
-						p->state = RUNNING;
+		for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+			if (p->state != RUNNABLE) continue;
 
-						swtch(&(c->scheduler),p->context);
-						
-						switchkvm();
-						c->proc = 0;				
-					}
-					
-					p = p->next;
-				}
-			}
+			// Switch to chosen process.  It is the process's job
+			// to release ptable.lock and then reacquire it
+			// before jumping back to us.
+			c->proc = p;
+			switchuvm(p);
+			p->state = RUNNING;
+
+			swtch(&(c->scheduler), p->context);
+			switchkvm();
+
+			// Process is done running for now.
+			// It should have changed its p->state before coming back.
+			c->proc = 0;
 		}
 		release(&ptable.lock);
 	}
 }
+
+// void
+// scheduler(void)
+// {
+// 	struct proc *p;
+// 	struct cpu * c = mycpu();
+// 	c->proc        = 0;
+// 	struct list *bin;
+// //	int foundproc = 0;
+
+// 	for (;;) {
+// start:
+// 		// Enable interrupts on this processor.
+// 		sti();
+
+// 		// Loop over process table looking for process to run.
+// 		acquire(&ptable.lock);
+// //		acquire(&pqueue.lock);
+// 		for (int i = 0; i < NBIN; i++) {
+// 			bin = &pqueue.Arr[i];
+// 			if (bin->head != (struct proc*)0) {			
+				
+// 				p = bin->head;
+// 				while (p != (struct proc*)0) {
+// 					if (p->state == RUNNABLE) {
+// 						for (int j = 0; j < NCPU; j++) {
+// 							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
+// 								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING /*|| cpus[j].proc->state*/)) {
+// 									i = 0;
+// 									release(&ptable.lock);
+// 									goto start;
+// 								}						
+// 							}
+// 						}
+// 						c->proc = p;
+// 						i = 0;
+// 						switchuvm(p);
+// 						p->state = RUNNING;
+
+// 						swtch(&(c->scheduler),p->context);
+						
+// 						switchkvm();
+// 						c->proc = 0;				
+// 					}
+					
+// 					p = p->next;
+// 				}
+// 			}
+// 		}
+// 		release(&ptable.lock);
+// 	}
+// }
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores

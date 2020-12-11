@@ -494,7 +494,7 @@ shm_get(char *name)
 	if(found) {
 		a = PGROUNDUP(p->sz);
 		pgdir = p->pgdir;
-//		cprintf("adding existing page %s\n",name);
+//		cprintf("proc %d adding existing page %s\n",p->pid,name);
 		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
 			cprintf("shmem out of memory\n");
 			return -1;
@@ -507,6 +507,7 @@ shm_get(char *name)
 		if (!free_ptr.set) {
 			return -1; /* already at SHM_MAXNUM pages */
 		}
+
 		ptr = free_ptr.ptr;
 		ptr->in_use = 1;
 		
@@ -518,14 +519,17 @@ shm_get(char *name)
 			cprintf("shmem out of memory\n");
 			return -1;
 		}
+
 		memset(mem, 0, PGSIZE);
-//		cprintf("getting new page %s\n",name);
+//		cprintf("proc %d getting new page %s\n",p->pid,name);
 //		cprintf("%s containerid=%d\n",ptr->name,ptr->container_id);
 		if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
+			panic("mem");
 			cprintf("shmem out of memory (2)\n");
 			kfree(mem);
 			return -1;
 		}
+
 		pa = V2P(mem);
 
 		acquire(&shm_list.lock);
@@ -548,7 +552,7 @@ shm_get(char *name)
 	ptr->container_id = p->container_id;
 	release(&shm_list.lock);
 //	cprintf("proc %d got %s refcount=%d\n",myproc()->pid,name,ptr->refcount);
-	cprintf("%s containerid=%d proc->contid:%d\n",ptr->name,ptr->container_id,p->container_id);
+//	cprintf("%s containerid=%d proc->contid:%d\n",ptr->name,ptr->container_id,p->container_id);
 	return ret_val;
 }
 
@@ -600,7 +604,7 @@ found_page:
 		proc_ptr->va = (char*)-1;
 		cur_proc->sz -= PGSIZE;
 
-		cprintf("last %s has refcount %d\n",ptr->name,ptr->refcount);
+//		cprintf("last %s has refcount %d\n",ptr->name,ptr->refcount);
 		strncpy(ptr->name,"",strlen(ptr->name));
 		return 0;
 	}
@@ -610,7 +614,7 @@ found_page:
 	strncpy(proc_ptr->name,"",strlen(proc_ptr->name));
 	proc_ptr->va = (char*)-1;
 	ptr->refcount--;
-	cprintf("not last %s has refcount %d\n",ptr->name,ptr->refcount);
+//	cprintf("not last %s has refcount %d\n",ptr->name,ptr->refcount);
 	cur_proc->sz -= PGSIZE;
 	return 0;
 }
