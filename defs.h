@@ -127,6 +127,12 @@ void         yield(void);
 int          cm_create_and_enter(char *, char *, int);
 int          cm_maxproc(int nproc);
 int          cm_setroot(char *, int, struct container *c);
+int          mutex_create(char *name);
+void         mutex_delete(int muxid);
+void         mutex_lock(int muxid);
+void         mutex_unlock(int muxid);
+void         cv_wait(int muxid);
+void         cv_signal(int muxid);
 
 // swtch.S
 void swtch(struct context **, struct context *);

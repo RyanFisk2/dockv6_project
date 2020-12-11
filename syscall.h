@@ -26,3 +26,9 @@
 #define SYS_cm_setroot 25
 #define SYS_cm_maxproc 26
 #define SYS_copy_file 27
+#define SYS_mutex_create 28
+#define SYS_mutex_delete 29
+#define SYS_mutex_lock 30
+#define SYS_mutex_unlock 31
+#define SYS_cv_wait 32
+#define SYS_cv_signal 33

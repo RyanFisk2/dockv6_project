@@ -43,6 +43,16 @@ struct shmem {
 	struct shared_mem *global_ptr;
 };
 
+struct mutex {
+	uint 			locked;   // Is the lock held? 0 if not, 1 if it is
+	int	    		isAlloc; // 0 if false, 1 if true
+	int		    	pid; 	 // pid of who locked this lock
+   char*           name;    // name of lock
+	int				refcount;	// Number of processes that can reference this mutex
+	int 			container_id;	// container id, 0 if global (normal xv6 environment), >0 if in container
+	int				cv;				// this thingy
+};
+
 enum procstate
 {
 	UNUSED,
@@ -71,6 +81,8 @@ struct proc {
 	struct shmem	  shared_mem[SHM_MAXNUM]; //virtual addresses for the shared memory mapped into this proc
 	struct container *container;	//holds the container id of the container this proc is in (0 == global or CM, >1 == in a container)
 	uint	          container_id;
+	struct mutex *	  mutex[MUX_MAXNUM];// Which locks this process has access to
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

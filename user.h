@@ -27,6 +27,12 @@ int   copy_file(char *dir, char *file);
 int   m_get(char *name);
 int   m_rem(char *name);
 int   cm_create_and_enter(char *init, char *fs, int nproc);
+int   mutex_create(char *name);
+void  mutex_delete(int muxid);
+void  mutex_lock(int muxid);
+void  mutex_unlock(int muxid);
+void  cv_wait(int muxid);
+void  cv_signal(int muxid);
 
 // ulib.c
 int   stat(char *, struct stat *);
