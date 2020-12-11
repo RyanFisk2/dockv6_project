@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct container;
 
 // bio.c
 void        binit(void);
@@ -52,6 +53,8 @@ struct inode *nameiparent(char *, char *);
 int           readi(struct inode *, char *, uint, uint);
 void          stati(struct inode *, struct stat *);
 int           writei(struct inode *, char *, uint, uint);
+int           copy_file(char *, char *);
+
 
 // ide.c
 void ideinit(void);
@@ -103,6 +106,7 @@ int  pipewrite(struct pipe *, char *, int);
 
 // PAGEBREAK: 16
 // proc.c
+void         cinit(void);
 int          cpuid(void);
 void         exit(void);
 int          fork(void);
@@ -121,6 +125,15 @@ void         userinit(void);
 int          wait(void);
 void         wakeup(void *);
 void         yield(void);
+int          cm_create_and_enter(char *, char *, int);
+int          cm_maxproc(int nproc);
+int          cm_setroot(char *, int, struct container *c);
+int          mutex_create(char *name);
+void         mutex_delete(int muxid);
+void         mutex_lock(int muxid);
+void         mutex_unlock(int muxid);
+void         cv_wait(int muxid);
+void         cv_signal(int muxid);
 int          prio_set(int pid, int priority);
 
 // swtch.S
@@ -187,6 +200,9 @@ void   switchuvm(struct proc *);
 void   switchkvm(void);
 int    copyout(pde_t *, uint, void *, uint);
 void   clearpteu(pde_t *pgdir, char *uva);
+int    shm_get(char *name);
+int    shm_rem(char *name);
+void   init_shm_list(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
