@@ -403,6 +403,7 @@ scheduler(void)
 //	int foundproc = 0;
 
 	for (;;) {
+start:
 		// Enable interrupts on this processor.
 		sti();
 
@@ -423,18 +424,39 @@ scheduler(void)
 				}
 
 				if (p != (struct proc*)0) {
-				
 					for (int j = 0; j < NCPU; j++) {
-						if(cpus[j].proc != 0) {
+						if(cpus[j].proc != 0 && (&cpus[j] != c)) {
 						//	cprintf("cpu %d proc=%d w/ state %d & prio=%d\n",j,cpus[j].proc->pid,cpus[j].proc->state,cpus[j].proc->priority);
+						/*
 							if (cpus[j].proc->priority < p->priority && ((cpus[j].proc->state == RUNNING) || (cpus[j].proc->state == RUNNABLE))){
 							//	cprintf("cpus[j].proc->pid:%d prio:%d\n",cpus[j].proc->pid,cpus[j].proc->priority);
 								swtch(&(cpus[j].proc->context),c->scheduler);
 								j = 0;
 							}
+						*/
+						
+						
+							if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING || cpus[j].proc->state)) {
+							//	p = cpus[j].proc;
+							//	cpus[j].proc = 0;
+							//	cprintf("RUNNING\n");
+
+							//	cprintf("RUNNING %d in %d\n", cpus[j].proc->pid, j);
+							//	c->proc = cpus[j].proc;
+							//	switchuvm(c->proc);
+							//	c->proc->state = RUNNABLE;
+							//	cpus[j].proc = 0;
+							//	swtch(&(c->scheduler),cpus[j].scheduler);
+							//	swtch(&(c->proc->context),c->scheduler);
+							//	switchkvm();
+							//	c->proc = 0;
+								i = 0;
+								release(&ptable.lock);
+								goto start;
+							} 
+						
 						}
 					}
-
 					c->proc = p;
 					i = 0;
 					switchuvm(p);
