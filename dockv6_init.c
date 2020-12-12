@@ -26,6 +26,8 @@ main()
         copy_file("container", "nproc_test2");
         copy_file("container", "shmem_testp1");
         copy_file("container", "shmem_testp2");
+        copy_file("container", "shmem2_p1");
+        copy_file("container", "shmem2_p2");
 
 
 
