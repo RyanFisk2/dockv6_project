@@ -172,7 +172,7 @@ allocproc(uint priority)
 {
 	struct proc *p;
 	char *       sp;
-
+//	cprintf("alloc\n");
 	acquire(&ptable.lock);
 
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -320,13 +320,15 @@ fork(void)
 	np -> container_id = curproc -> container_id;
 
 	for (int i = 0; i < SHM_MAXNUM; i++) {
-		newproc_shmem = &np->shared_mem[i];
-		parent_shmem = &curproc->shared_mem[i];
-		newproc_shmem->in_use = parent_shmem->in_use;
-		strncpy(newproc_shmem->name,parent_shmem->name,strlen(parent_shmem->name));
-		newproc_shmem->va = parent_shmem->va;
-		newproc_shmem->global_ptr = parent_shmem->global_ptr;
-		newproc_shmem->global_ptr->refcount++;
+		if (strncmp(curproc->name,"cm",strlen(curproc->name)) != 0) {
+			newproc_shmem = &np->shared_mem[i];
+			parent_shmem = &curproc->shared_mem[i];
+			newproc_shmem->in_use = parent_shmem->in_use;
+			strncpy(newproc_shmem->name,parent_shmem->name,strlen(parent_shmem->name));
+			newproc_shmem->va = parent_shmem->va;
+			newproc_shmem->global_ptr = parent_shmem->global_ptr;
+			newproc_shmem->global_ptr->refcount++;
+		}
 	}
 
 	// Clear %eax so that fork returns 0 in the child.
@@ -359,7 +361,7 @@ exit(void)
 	struct proc *p;
 	int          fd;
 
-
+//	cprintf("proc %d exiting\n",curproc->pid);
 
 	if (curproc == initproc) panic("init exiting");
 
@@ -509,7 +511,7 @@ scheduler(void)
 			// Process is done running for now.
 			// It should have changed its p->state before coming back.
 			c->proc = 0;
-		}
+		} 
 		release(&ptable.lock);
 	}
 }
@@ -538,7 +540,7 @@ scheduler(void)
 // 				p = bin->head;
 // 				while (p != (struct proc*)0) {
 // 					if (p->state == RUNNABLE) {
-
+						
 // 						for (int j = 0; j < NCPU; j++) {
 // 							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
 // 								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING)) {
@@ -548,7 +550,7 @@ scheduler(void)
 // 								}						
 // 							}
 // 						}
-
+// 				//		cprintf("running %d\n",p->pid);
 // 						c->proc = p;
 // 						i = 0;
 // 						switchuvm(p);
@@ -993,14 +995,17 @@ void cv_wait(int muxid){
 			sched();
 			release(&ptable.lock);
 		}
+//		cprintf("got signaled in cv_wait\n");
 		mutex_lock(muxid);
+	} else{
+		cprintf("Must hold lock to sleep on condition variable\n");
 	}
 	return;
 }
 void cv_signal(int muxid){
 	struct mutex *mux = myproc()->mutex[muxid];
 	int done = 0;
-
+//	cprintf("signal\n");
 	if(mux){
 		//Keep looping until we successfully signal
 		while(done == 0){

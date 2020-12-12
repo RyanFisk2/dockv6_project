@@ -194,6 +194,7 @@ UPROGS=\
 	_sched_test3\
 	_sched_test4\
 	_mux_shmem_test\
+	_shmem_test4\
 
 fs.img: mkfs README container_config.json nproc_test.json $(UPROGS)
 	./mkfs fs.img README container_config.json nproc_test.json $(UPROGS)

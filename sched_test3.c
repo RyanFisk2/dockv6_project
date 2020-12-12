@@ -32,7 +32,7 @@ main(void)
                 sleep(10);
                 *shm_addr = 0;
                 num_preemptions = 0;
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < 100; i++) {
                         *shm_addr = 0;
                 }
                 exit();
