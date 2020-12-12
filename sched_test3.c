@@ -24,6 +24,7 @@ main(void)
                 for (int i = 0; i < 100; i++){
                         printf(1,"child1 prio=1\n");
                         if (*shm_addr != 1) num_preemptions++;
+                        *shm_addr = 1;
                 }
                 printf(1,"child1 preempted by child2 %d times\n",num_preemptions);
                 exit();

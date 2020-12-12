@@ -5,12 +5,13 @@ int
 main(void)
 {
         char *shmem_addr;
-
+        int lockidp, lockidc; 
         shmem_addr = (char*)1;
         *shmem_addr = 1;
         printf(1,"TESTING PASSING BETWEEN CHILD PROC:\n");
         int pid = fork();
         if (pid != 0 ) {
+                lockidp = mutex_create("lockingTest");
                 if ( (shmem_addr = shm_get("test1")) == (char*)0) {
                         printf(1,"get ERR\n");
                         exit();
@@ -27,9 +28,14 @@ main(void)
                 shmem_addr += strlen(fs) + sizeof(char);
                 *shmem_addr = nproc;
                 printf(1,"      parent put '6' after '/temp' in shared page\n");
+                cv_signal(lockidp);
                 wait();
                 exit();
         } else{
+                lockidc = mutex_create("lockingTest");
+                mutex_lock(lockidc);
+                cv_wait(lockidc);
+                mutex_unlock(lockidc);
                 sleep(10);
                 char *init, *fs;
                 int nproc;
