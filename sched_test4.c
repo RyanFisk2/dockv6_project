@@ -39,9 +39,9 @@ main(void)
                 exit();
         } else{
                 sleep(10);
-                
+                *shm_addr = 0;
                 for (i = 0; i < 100; i++) {
-                        (*shm_addr)++;
+                        *shm_addr = 0;
                 }
                 exit();
         }
