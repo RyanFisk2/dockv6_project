@@ -4,13 +4,11 @@
 int
 main(void)
 {
-        char *shmem_start = (char*)1;
-        *shmem_start = 1;
+        char *shmem_start;
         char *init, *fs;
         int nproc;
         init = fs = "";
         printf(1,"      TESTING PROC IN SEPERATE ANCESTRY GETTING PAGE:\n");
-        printf(1,"      pre get: shmem_addr=%d *shmem_addr=%d\n",shmem_start,*shmem_start);
         shmem_start = shm_get("test1");
         printf(1,"      got shared mem page 'test1'\n");
         strcpy(init,shmem_start);

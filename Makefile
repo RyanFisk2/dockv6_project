@@ -181,6 +181,8 @@ UPROGS=\
 	_shmem2_p1\
 	_shmem2_p2\
 	_shmem3\
+	_shmem_test4\
+	_shmem_test5\
 	_dockv6\
 	_cm\
 	_HelloWorld\
@@ -195,7 +197,6 @@ UPROGS=\
 	_sched_test3\
 	_sched_test4\
 	_mux_shmem_test\
-	_shmem_test4\
 
 fs.img: mkfs README container_config.json nproc_test.json $(UPROGS)
 	./mkfs fs.img README container_config.json nproc_test.json $(UPROGS)
