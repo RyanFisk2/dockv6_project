@@ -13,12 +13,14 @@ int
 main()
 {
         int pid;
-        int done = 0;
+        //int done = 0;
         int num_forks = 1;
         
         pid = fork();
 
-        if(pid > 0)
+        printf(1, "TRYING TO CREATE 6 CHILDREN IN CONTAINER WITH NPROC = 4\n");
+
+        if(pid == 0)
         {
                 printf(1, "Created child %d\n", pid);
 
@@ -26,7 +28,7 @@ main()
 
                 int pid2 = fork();
 
-                if(pid2 > 0)
+                if(pid2 == 0)
                 {
                         printf(1, "created child %d\n", pid2);
 
@@ -34,7 +36,7 @@ main()
 
                         int pid3 = fork();
 
-                        if(pid3 > 0)
+                        if(pid3 == 0)
                         {
                                 printf(1, "created child %d\n", pid3);
 
@@ -42,7 +44,7 @@ main()
 
                                 int pid4 = fork();
 
-                                if(pid4 > 0)
+                                if(pid4 == 0)
                                 {
                                         printf(1, "created child %d\n", pid4);
 
@@ -50,15 +52,16 @@ main()
 
                                         num_forks ++;
 
-                                        if(pid5 > 0)
+                                        if(pid5 == 0)
                                         {
                                                 printf(1, "created child %d\n", pid5);
+                                                printf(1, "nproc_test2 FAIL, CREATED 5 CHILDREN");
 
                                                 int pid6 = fork();
 
                                                 num_forks++;
 
-                                                if(pid6 > 0)
+                                                if(pid6 == 0)
                                                 {
                                                         printf(1, "created child %d\n", pid6);
                                                         printf(1, "nproc_test2 fail, made 6 children, max is 4\n");
@@ -76,7 +79,7 @@ main()
                                                 exit();
                                         }else{
                                                 printf(1, "ending nproc_test2, num_forks: %d\n", num_forks);
-                                                done = 1;
+                                                //done = 1;
                                                 exit();
                                         }
 
@@ -85,7 +88,7 @@ main()
                                         exit();
                                 }else{
                                         printf(1, "ending nproc_test2, num_forks: %d\n", num_forks);
-                                        done = 1;
+                                        //done = 1;
                                         exit();
                                 }
 
@@ -94,7 +97,7 @@ main()
                                 exit();
                         }else{
                                 printf(1, "ending nproc_test2, num_forks: %d\n", num_forks);
-                                done = 1;
+                                //done = 1;
                                 exit();
                         }
                 }else if (pid2 != -1) {
@@ -105,8 +108,5 @@ main()
                 wait();
         }
 
-        while (!(done));
-
-        printf(1, "total forks: &d\n", num_forks);
         exit();
 }

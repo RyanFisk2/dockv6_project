@@ -16,6 +16,7 @@ create_and_enter(char *init, char* fs, int nproc)
         
         if(!(child)){
                 exec(init, argv);
+                exit();
         }else{
                 wait();
         } 

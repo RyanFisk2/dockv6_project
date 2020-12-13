@@ -786,9 +786,10 @@ found:
 
 		curproc->container_id = 0;
 		return 1;
+	}else{
+		return 0;
 	}
 
-	return 0;
 }
 
 /*
@@ -832,6 +833,7 @@ cm_setroot(char* path, int path_len, struct container *container)
 	root_node = namei(path);
 	
 	memmove(&container->root,&root_node, sizeof(root_node));
+	safestrcpy(container->fs, path, strlen(path));
 	
 	return 1;
 }

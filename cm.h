@@ -10,6 +10,7 @@ struct container
         uint container_id;
         uint nproc;
         char *init;
+        char *fs;
         struct inode *root;
 
 };
