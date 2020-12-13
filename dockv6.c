@@ -1,7 +1,7 @@
 #include "types.h"
 #include "user.h"
 #include "cm.h"
-#include "jsmn/jsmn.h"
+#include "jsmn.h"
 
 /*
  * jsoneq function copied from jsmn.c

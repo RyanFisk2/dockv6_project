@@ -338,11 +338,13 @@ fork(void)
 	pid = np->pid;
 
 	/* if not global(not in container) shell or container manager, set priority=1 so priority is lower than container manager */
-	if ( (curproc->pid > 2) && strncmp(np->name,"cm",strlen(np->name)) != 0) {
+	if ( (curproc->pid > 1) && strncmp(np->name,"cm",strlen(np->name)) != 0) {
 		prio_set(pid,1);
 	}
 
-	prio_set(np->pid,curproc->priority);
+	if (prio_set(np->pid,curproc->priority) == -1) {
+		cprintf("prio set fail on fork curproc: %d forking: %d\n",curproc->pid,pid);
+	}
 
 	acquire(&ptable.lock);
 
