@@ -5,6 +5,8 @@
 /*
  * test that zombie procs are counted against the max num procs
  * this loop should generate a whole lot of zombies
+ * 
+ * IMPORTANT: Running this outside of a container will cause a cluster fuck
  */
 int
 main()

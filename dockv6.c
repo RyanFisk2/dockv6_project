@@ -32,7 +32,7 @@ jsoneq(const char *json, jsmntok_t *tok, char *s) {
 int
 main(int argc, char* argv[])
 {
-        int jfd, n, r, nproc = 0;
+        int jfd, n, r, muxid, nproc = 0;
         char buf[512];
         char init[32], fs[32], nproc_array[32];
         jsmn_parser p;
@@ -58,8 +58,8 @@ main(int argc, char* argv[])
                 }
 
         }
-        //parse JSON for init, fs, and nproc
 
+        //parse JSON for init, fs, and nproc
         jsmn_init(&p);
 
         r = jsmn_parse(&p, buf, strlen(buf), t, 128);
@@ -100,10 +100,12 @@ main(int argc, char* argv[])
         shmem += ((strlen(fs) * sizeof(char)) + sizeof(char));
 
         *shmem = nproc;
-        
-        //need this loop to keep shared mem visible for CM
-        while(1);
 
+        
+        muxid = mutex_create("cmcomm");
+        cv_signal(muxid);
+
+        while(1);
         exit();   
 
 }

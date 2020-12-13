@@ -494,8 +494,8 @@ shm_get(char *name)
 	if(found) {
 		a = PGROUNDUP(p->sz);
 		pgdir = p->pgdir;
-		cprintf("proc %s (pid=%d) adding existing page %s\n",p->name,p->pid,name);
-		cprintf("%s containerid=%d proc containerid=%d\n",ptr->name,ptr->container_id,p->container_id);
+//		cprintf("proc %s (pid=%d) adding existing page %s\n",p->name,p->pid,name);
+//		cprintf("%s containerid=%d proc containerid=%d\n",ptr->name,ptr->container_id,p->container_id);
 		
 		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
 			cprintf("shmem out of memory\n");

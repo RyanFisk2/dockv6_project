@@ -56,14 +56,6 @@ print_prio_bin(int priority)
 		cprintf("pid: %d\n",p->pid);
 		p = p->next;
 	}
-/*
-	cprintf("printing prioqueue[0]\n");
-	p = pqueue.Arr[0].head;
-	while (p != (struct proc*)0) {
-		cprintf("pid: %d\n",p->pid);
-		p = p->next;
-	}
-*/
 }
 
 void
@@ -172,7 +164,7 @@ allocproc(uint priority)
 {
 	struct proc *p;
 	char *       sp;
-//	cprintf("alloc\n");
+
 	acquire(&ptable.lock);
 
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -345,6 +337,13 @@ fork(void)
 	}
 	pid = np->pid;
 
+	/* if not global(not in container) shell or container manager, set priority=1 so priority is lower than container manager */
+	if ( (curproc->pid > 2) && strncmp(np->name,"cm",strlen(np->name)) != 0) {
+		prio_set(pid,1);
+	}
+
+	prio_set(np->pid,curproc->priority);
+
 	acquire(&ptable.lock);
 
 	np->state = RUNNABLE;
@@ -514,7 +513,7 @@ scheduler(void)
 			// Process is done running for now.
 			// It should have changed its p->state before coming back.
 			c->proc = 0;
-		} 
+		}
 		release(&ptable.lock);
 	}
 }
@@ -526,7 +525,6 @@ scheduler(void)
 	struct cpu * c = mycpu();
 	c->proc        = 0;
 	struct list *bin;
-//	int foundproc = 0;
 
 	for (;;) {
 start:
@@ -535,25 +533,25 @@ start:
 
 		// Loop over process table looking for process to run.
 		acquire(&ptable.lock);
-//		acquire(&pqueue.lock);
+
 		for (int i = 0; i < NBIN; i++) {
 			bin = &pqueue.Arr[i];
 			if (bin->head != (struct proc*)0) {			
 				
 				p = bin->head;
 				while (p != (struct proc*)0) {
+
 					if (p->state == RUNNABLE) {
-						
+				//		cprintf("running %d (prio=%d)\n",p->pid,p->priority);
 						for (int j = 0; j < NCPU; j++) {
 							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
 								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING)) {
-								//	i = 0;
 									release(&ptable.lock);
 									goto start;
 								}						
 							}
 						}
-				//		cprintf("running %d\n",p->pid);
+//						cprintf("running %d\n",p->pid);
 						c->proc = p;
 						i = 0;
 						switchuvm(p);
@@ -669,7 +667,6 @@ static void
 wakeup1(void *chan)
 {
 	struct proc *p;
-
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 		if (p->state == SLEEPING && p->chan == chan) p->state = RUNNABLE;
 }
@@ -753,6 +750,8 @@ cm_create_and_enter(char *init, char *fs, int nproc)
 	struct container *c;
 	struct proc *curproc = myproc();
 
+	strncpy(curproc->name,"cm",strlen("cm"));
+
 	acquire(&containers.lock);
 		for (c = containers.Arr; c < &containers.Arr[MAX_NUM_CONTAINERS]; c++) {
 			if (c->container_id == -1) goto found;
@@ -771,7 +770,9 @@ found:
 	curproc -> container = c;
 
 	//set root for container
+//	cprintf("proc %d running create_and_enter\n",curproc->pid);	
 	
+//	cprintf("proc %d running create_and_enter\n",curproc->pid);
 	begin_op();
 	cm_setroot(fs,strlen(fs),c);
 	curproc->cwd = idup(c->root);
@@ -782,7 +783,7 @@ found:
 
 	int child = fork();
 	if (child != 0) {
-		wait();
+
 		curproc->container_id = 0;
 		return 1;
 	}
@@ -790,11 +791,18 @@ found:
 	return 0;
 }
 
+/*
+ * cm_maxproc sets the maximum number of procs that can be forked in the container
+ * 
+ * returns an error if we try to assign more than NPROC to any one container
+ * or if nproc has already been set for this container 
+ * or if we are not in a container
+ */
+ 
 int
 cm_maxproc(int nproc)
 {
 	if(nproc >= NPROC){
-		cprintf("ERR: cannot give more than NPROC to one container\n");
 		return -1;
 	}
 
@@ -803,11 +811,9 @@ cm_maxproc(int nproc)
 
 	if ((c->nproc != -1) || (p->container_id == 0))
 	{
-		cprintf("ERR: nproc already set or not in container\n");
 		return -1;
 	}
 
-	cprintf("setting nproc to %d\n", nproc);
 
 	c -> nproc = nproc;
 
@@ -830,22 +836,24 @@ cm_setroot(char* path, int path_len, struct container *container)
 	return 1;
 }
 
+/*
+ * Go through mtable. Save the first unallocated mutex, so long as we do not
+ * find one with the same name as *name, from the same container. If we find one with the same name&container,
+ * goto addtoProc, as all we need to do is give our current process access, and return its muxid.
+ * Otherwise, we need to set up a new mutex with the 'unallocated' variable
+ */
 int mutex_create(char *name){
 	struct proc *p = myproc();
 	struct mutex *m;
 	int muxid = -1;
 	struct mutex *unallocated = (struct mutex*)0;
 
-	/*
-	 * Go through mtable. Save the first unallocated mutex, so long as we do not
-	 * find one with the same name as *name, from the same container. If we find one with the same name&container,
-	 * goto addtoProc, as all we need to do is give our current process access, and return its muxid.
-	 * Otherwise, we need to set up a new mutex with the 'unallocated' variable
-	*/ 
+	 
 
 	// Go through mtable, find which path we need to take
 	acquire(&mtable.lock);
 	for(m = mtable.mux; m < &mtable.mux[MUX_MAXNUM]; m++){
+
 		if(m->isAlloc == 0 && unallocated == (struct mutex*)0 ){
 			unallocated = m;
 		}else if(strncmp(name, m->name, strlen(name)) == 0 && m->container_id == p->container_id){
@@ -885,7 +893,7 @@ addtoProc:
 	
 setupMutex:
 	unallocated->isAlloc = 1;
-	unallocated->name = name;
+	strncpy(unallocated->name,name,strlen(name));
 	unallocated->refcount = 1;
 	unallocated->container_id = p->container_id;
 	unallocated->cv = 0;
@@ -929,7 +937,7 @@ void mutex_delete(int muxid){
 		if (m->refcount == 1) { /* deallocate lock */
 			m->isAlloc = 0; 
 			m->refcount = 0;
-			m->name = "";
+			strncpy(m->name,"",strlen(""));
 			m->container_id = 0;
 			release(&mtable.lock);
 			return;
@@ -985,10 +993,9 @@ void mutex_lock(int muxid){
 void cv_wait(int muxid){
 	struct proc *curr_proc = myproc();
 	struct mutex *mux = curr_proc->mutex[muxid];
-	
 	if(mutex_holding(mux)){
-		mutex_unlock(muxid);
 
+		mutex_unlock(muxid);
 		//Maybe add a condition variable that gets changed on wakeup(muxid)? Maybe just continue with code. 
 		// I don't know how the container calls EXACTLY work, but im assumming it similar to pipes
 		while(1){ /*we have not recieved reply from container manager*/
@@ -999,7 +1006,7 @@ void cv_wait(int muxid){
 			sched();
 			release(&ptable.lock);
 		}
-//		cprintf("got signaled in cv_wait\n");
+		
 		mutex_lock(muxid);
 	} else{
 		cprintf("Must hold lock to sleep on condition variable\n");
@@ -1009,7 +1016,6 @@ void cv_wait(int muxid){
 void cv_signal(int muxid){
 	struct mutex *mux = myproc()->mutex[muxid];
 	int done = 0;
-//	cprintf("signal\n");
 	if(mux){
 		//Keep looping until we successfully signal
 		while(done == 0){
@@ -1018,10 +1024,13 @@ void cv_signal(int muxid){
 				mux->cv = 1;
 				done = 1;
 			}
-			release(&mtable.lock); 
+			release(&mtable.lock);
 			wakeup(mux);
 		}
+	}else{
+		cprintf("mux null or mux == 0");
 	}
+
 	return;
 }
 
@@ -1042,27 +1051,26 @@ prio_set(int pid, int priority)
 
 	if (p->pid != pid) return -1; /* no proc w/ given pid */
 
-//	cprintf("check1\n");
-	if (priority == p->priority) return 0; /* no point in setting prio to current prio */
+	
 	if (priority < p->priority) {
-//		cprintf("pid:%d prio:%d\n",p->pid,p->priority);
 		return -1; /* cant set priority higher than curr priority */
 	}
-//	cprintf("check2\n");
+
 	if (p == (struct proc*)0) return -1; /* no proc w/ given pid exists */
 	temp = p;
 	if (pid != curproc->pid) {
 		while(1) {
-		//	if (temp == (struct proc*)0) return -1;
 			temp_parent = temp->parent;
 			if (temp_parent == curproc) break;
 			if (temp_parent == initproc) {
-				cprintf("reached init\n");
 				return -1; /* calling proc not in ancestry */
 			}
 			temp = temp_parent;
 		}
 	}
+
+	if (priority == p->priority) return 0; /* no point in setting prio to current prio */
+
 	acquire(&pqueue.lock);
 	for (int i = 0; i < NBIN; i++) {
 		bin = &pqueue.Arr[i];
@@ -1082,7 +1090,5 @@ prio_set(int pid, int priority)
 	}
 	release(&pqueue.lock);
 	pqueue_enqueue(proc,priority); /* add proc to new bin */
-//	cprintf("curpid:%d\n",myproc()->pid);
-//	print_prio_bin(priority);
 	return 0;
 }
