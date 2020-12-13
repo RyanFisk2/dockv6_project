@@ -25,6 +25,13 @@ main(void)
                 wait();
                 wait();
                 printf(1,"back to parent: value @ first address of shared page = %s\n",shm_addr);
+                printf(1,"parent calling shm_rem('test4')\n");
+                if (shm_rem("test4") == -1) {
+                        printf(1,"Remove Err!\n");
+                        exit();
+                }
+                printf(1,"trying to access shared mem after remove - should fault\n");
+                printf(1,"value @ first address of shared page = %s\n",shm_addr);
                 exit();
         } else if(child1 == 0) {
                 muxid = mutex_create("test4");
@@ -49,11 +56,7 @@ main(void)
                 cv_wait(muxid);
                 mutex_unlock(muxid);
                 printf(1,"child2 accessing shared page: value @ first address = %s\n",shm_addr);
-                printf(1,"child2 calling shm_rem('test4')\n");
-                if (shm_rem("test4") == -1) {
-                        printf(1,"Remove Err!\n");
-                        exit();
-                }
+                printf(1,"child2 exiting\n");
                 exit();
         }
 }

@@ -17,7 +17,7 @@ main(void)
         }
 
         printf(1,"      called shm_rem('test3')\n");
-        printf(1,"      trying to get value from shared page\n");
+        printf(1,"      trying to get value from shared page - should fault\n");
         printf(1,"      value @ first addr of page:%d\n",*shm_addr);
         exit();
 }
