@@ -848,7 +848,7 @@ int mutex_create(char *name){
 	for(m = mtable.mux; m < &mtable.mux[MUX_MAXNUM]; m++){
 		if(m->isAlloc == 0 && unallocated == (struct mutex*)0 ){
 			unallocated = m;
-		}else if(strncmp(name, m->name, sizeof(name)) == 0 && m->container_id == p->container_id){
+		}else if(strncmp(name, m->name, strlen(name)) == 0 && m->container_id == p->container_id){
 			goto addtoProc;
 		}
 	}
