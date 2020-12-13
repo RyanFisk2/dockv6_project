@@ -1053,10 +1053,13 @@ prio_set(int pid, int priority)
 	temp = p;
 	if (pid != curproc->pid) {
 		while(1) {
-			if (temp == (struct proc*)0) return -1;
+		//	if (temp == (struct proc*)0) return -1;
 			temp_parent = temp->parent;
 			if (temp_parent == curproc) break;
-			if (temp_parent == initproc) return -1; /* calling proc not in ancestry */
+			if (temp_parent == initproc) {
+				cprintf("reached init\n");
+				return -1; /* calling proc not in ancestry */
+			}
 			temp = temp_parent;
 		}
 	}
