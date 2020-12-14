@@ -3,8 +3,11 @@
 ## Overall project 
 ### Overall level: 2 + integration of 3 modules
 
+- Integration: Integrated modules 1, 2, and 3. Integration was a collaborative effort over vscode liveshare sessions. Any issues concerning all modules and general
+   bugfixing was done by all 3 of us.
+
 ## Module 1
-### Module level: 3 + integration
+### Module level: 3
 
 - Test of level 0: added a print to cm.c to print out container specs from the container manager.
 
@@ -26,7 +29,7 @@
     
 
 ## Module 2
-### Module level: 3 + integration
+### Module level: 3
 
 - shmem_testp1 and shmem_testp2 test shared memory access across processes in different ancestries. This test is also used to test segregation of shared memory between global
     and within a container
@@ -52,7 +55,7 @@
    
    
  ## Module 3
- ### Module level: 3 + integration
+ ### Module level: 3
  
  - Mutex_test1 tests that mutexes prevent race conditions
  
@@ -96,7 +99,7 @@
     -- Attribution: Jon
     
 - sched_test1 tests the priority scheduler by having 2 processes with different priority levels get the same shared memory page and write different values to it.
-   The number of tyimes an unexpected value is seen by the higher priority process (i.e. the number of preemptions by a lower priority process) is recorded and printed
+   The number of times an unexpected value is seen by the higher priority process (i.e. the number of preemptions by a lower priority process) is recorded and printed
    
    -- Attribution: Jon
    
