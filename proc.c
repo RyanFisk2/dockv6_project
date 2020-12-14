@@ -247,6 +247,7 @@ userinit(void)
 
 	p->state = RUNNABLE;
 
+
 	release(&ptable.lock);
 }
 
@@ -338,13 +339,12 @@ fork(void)
 	pid = np->pid;
 
 	/* if not global(not in container) shell or container manager, set priority=1 so priority is lower than container manager */
+
 	if ( (curproc->pid > 1) && strncmp(np->name,"cm",strlen(np->name)) != 0) {
 		prio_set(pid,1);
 	}
 
-	if (prio_set(np->pid,curproc->priority) == -1) {
-		cprintf("prio set fail on fork curproc: %d forking: %d\n",curproc->pid,pid);
-	}
+//	prio_set(np->pid,curproc->priority);
 
 	acquire(&ptable.lock);
 
@@ -485,7 +485,7 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
-/*
+
 void
 scheduler(void)
 {
@@ -519,59 +519,59 @@ scheduler(void)
 		release(&ptable.lock);
 	}
 }
-*/
-void
-scheduler(void)
-{
-	struct proc *p;
-	struct cpu * c = mycpu();
-	c->proc        = 0;
-	struct list *bin;
 
-	for (;;) {
-start:
-		// Enable interrupts on this processor.
-		sti();
+// void
+// scheduler(void)
+// {
+// 	struct proc *p;
+// 	struct cpu * c = mycpu();
+// 	c->proc        = 0;
+// 	struct list *bin;
 
-		// Loop over process table looking for process to run.
-		acquire(&ptable.lock);
+// 	for (;;) {
+// start:
+// 		// Enable interrupts on this processor.
+// 		sti();
 
-		for (int i = 0; i < NBIN; i++) {
-			bin = &pqueue.Arr[i];
-			if (bin->head != (struct proc*)0) {			
+// 		// Loop over process table looking for process to run.
+// 		acquire(&ptable.lock);
+
+// 		for (int i = 0; i < NBIN; i++) {
+// 			bin = &pqueue.Arr[i];
+// 			if (bin->head != (struct proc*)0) {			
 				
-				p = bin->head;
-				while (p != (struct proc*)0) {
+// 				p = bin->head;
+// 				while (p != (struct proc*)0) {
 
-					if (p->state == RUNNABLE) {
-				//		cprintf("running %d (prio=%d)\n",p->pid,p->priority);
-						for (int j = 0; j < NCPU; j++) {
-							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
-								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING)) {
-									release(&ptable.lock);
-									goto start;
-								}						
-							}
-						}
-//						cprintf("running %d\n",p->pid);
-						c->proc = p;
-						i = 0;
-						switchuvm(p);
-						p->state = RUNNING;
+// 					if (p->state == RUNNABLE) {
+// 				//		cprintf("running %d (prio=%d)\n",p->pid,p->priority);
+// 						for (int j = 0; j < NCPU; j++) {
+// 							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
+// 								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING)) {
+// 									release(&ptable.lock);
+// 									goto start;
+// 								}						
+// 							}
+// 						}
+// //						cprintf("running %d\n",p->pid);
+// 						c->proc = p;
+// 						i = 0;
+// 						switchuvm(p);
+// 						p->state = RUNNING;
 
-						swtch(&(c->scheduler),p->context);
+// 						swtch(&(c->scheduler),p->context);
 						
-						switchkvm();
-						c->proc = 0;				
-					}
+// 						switchkvm();
+// 						c->proc = 0;				
+// 					}
 					
-					p = p->next;
-				}
-			}
-		}
-		release(&ptable.lock);
-	}
-}
+// 					p = p->next;
+// 				}
+// 			}
+// 		}
+// 		release(&ptable.lock);
+// 	}
+// }
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores

@@ -364,11 +364,10 @@ copyuvm(pde_t *pgdir, uint sz)
 			if ((mem = kalloc()) == 0) goto bad;
 			memmove(mem, (char *)P2V(pa), PGSIZE);
 			if (mappages(d, (void *)i, PGSIZE, V2P(mem), flags) < 0) goto bad;
-		} else{
+		} else if (strncmp(curproc->name,"cm",strlen(curproc->name)) != 0){
 			mappages(d,(void*)va,PGSIZE,pa,flags);
 			is_shmem = 0;
 		}
-
 	}
 /*
 	for (i = 0; i < SHM_MAXNUM; i++) {
@@ -442,6 +441,7 @@ shm_get(char *name)
 	uint found = 0;
 	uint pa;
 
+
 	ret_val = p->sz; /* shmem starting addr will b last address in VAS before page is mapped */
 	
 	// Tracks the first available spot in shm_list for a new page of shared memory 
@@ -459,7 +459,7 @@ shm_get(char *name)
 			new_shmem = &p->shared_mem[i];
 		}
 //		if (strncmp(cur_name,(char*)0,sizeof((char*)0)) == 0) new_shmem = &p->shared_mem[i];
-		if (strncmp(cur_name,name,strlen(name)) == 0) {cprintf("already have this page\n"); return -1;} /* proc already holds shmem */
+		if (strncmp(cur_name,name,strlen(name)) == 0) return -1; /* proc already holds shmem */
 	}
 
 //	if (new_shmem == (struct shmem*)0) return -1; /* proc at SHM_MAXNUM shmem pages */

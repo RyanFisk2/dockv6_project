@@ -1,5 +1,5 @@
 {
         "init": "/sh",
         "fs": "/container/",
-        "nproc": 4
+        "nproc": 10
 }

@@ -105,7 +105,7 @@ main(int argc, char* argv[])
         muxid = mutex_create("cmcomm");
         cv_signal(muxid);
 
-        while(1);
+//        while(1);
         exit();   
 
 }
