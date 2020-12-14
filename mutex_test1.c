@@ -6,6 +6,11 @@
 #define DATASZ (1024 * 32 / NCHILDREN)
 
 
+/*
+This code tests for race conditions between a shared mutex across 8 forks.
+Should print "RACE!!!" if a race condition is encountered. 
+*/
+
 void
 child(int lockid, int pipefd, char tosend)
 {
@@ -30,19 +35,6 @@ child(int lockid, int pipefd, char tosend)
 	exit();
 }
 
-void cvtest(void){
-    int lockid = mutex_create("test2");
-    
-    mutex_lock(lockid);
-    printf(1, "Calling cv wait\n");
-    cv_wait(lockid);
-    printf(1, "Done with cv wait\n");
-    mutex_unlock(lockid);
-    
-    mutex_delete(lockid);
-    exit();
-}
-
 int
 main(void)
 {
@@ -50,7 +42,7 @@ main(void)
 	int pipes[2];
 	char data[NCHILDREN], first = 'a';
 	int lockid;
-
+	printf(1, "Testing for race conditions on mutexes, should see 'RACE' on error.\n");
 	for (i = 0 ; i < NCHILDREN ; i++) {
 		data[i] = (char)(first + i);
 	}
@@ -93,17 +85,5 @@ done:
 
 	mutex_delete(lockid);
 
-    lockid = mutex_create("test2");
-    if(fork() == 0){
-        cvtest();
-    }else{
-        for(i = 0; i < 1000; i++){
-            printf(1, "locking and unlocking\n");
-            mutex_lock(lockid);
-            mutex_unlock(lockid);
-        }
-        cv_signal(lockid);
-        wait();
-    }
     exit();
 }

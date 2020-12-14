@@ -479,8 +479,7 @@ shm_get(char *name)
 		}
 		
 		if (strncmp(ptr->name, name, strlen(name)) == 0 && ptr->container_id == p->container_id) {
-//			cprintf("found %s\n",ptr->name);
-//			cprintf("shmem->containerid:%d proc->containerid:%d\n",ptr->container_id,p->container_id);
+
 			found = 1;
 			break;
 		}
@@ -494,8 +493,7 @@ shm_get(char *name)
 	if(found) {
 		a = PGROUNDUP(p->sz);
 		pgdir = p->pgdir;
-//		cprintf("proc %s (pid=%d) adding existing page %s\n",p->name,p->pid,name);
-//		cprintf("%s containerid=%d proc containerid=%d\n",ptr->name,ptr->container_id,p->container_id);
+
 		
 		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
 			cprintf("shmem out of memory\n");
@@ -524,8 +522,7 @@ shm_get(char *name)
 		}
 
 		memset(mem, 0, PGSIZE);
-//		cprintf("proc %d getting new page %s\n",p->pid,name);
-//		cprintf("%s containerid=%d\n",ptr->name,ptr->container_id);
+
 
 		if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
 			panic("mem");
@@ -555,8 +552,7 @@ shm_get(char *name)
 		
 	ptr->container_id = p->container_id;
 	release(&shm_list.lock);
-//	cprintf("proc %d got %s refcount=%d\n",myproc()->pid,name,ptr->refcount);
-//	cprintf("%s containerid=%d proc->contid:%d\n",ptr->name,ptr->container_id,p->container_id);
+
 	return ret_val;
 }
 
@@ -567,20 +563,19 @@ shm_rem(char *name)
 	struct shmem *proc_ptr = (struct shmem*)0;
 	struct proc *cur_proc = myproc();
 	char *cur_name;
-//	cprintf("in rem\n");
+
 	acquire(&shm_list.lock);
 	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
 		if (strncmp(ptr->name, name, strlen(name)) == 0 && ptr->container_id == cur_proc->container_id) {
-//			cprintf("page %s has containerid %d curproc(pid %d) has containerid %d\n",name,ptr->container_id,cur_proc->pid,cur_proc->container_id);
 			goto found_page;
 		}
 	}
 	release(&shm_list.lock);
-//	cprintf("aaaa\n");
+
 	return -1; /* no shared page w/ given name */
 found_page:
 	release(&shm_list.lock);
-//	cprintf("ptr=%p\n",ptr);
+
 	/* releasing existing shared mem */
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		cur_name = cur_proc->shared_mem[i].name;
@@ -608,7 +603,7 @@ found_page:
 		proc_ptr->va = (char*)-1;
 		cur_proc->sz -= PGSIZE;
 
-//		cprintf("last %s has refcount %d\n",ptr->name,ptr->refcount);
+
 		strncpy(ptr->name,"",strlen(ptr->name));
 		return 0;
 	}
@@ -618,7 +613,7 @@ found_page:
 	strncpy(proc_ptr->name,"",strlen(proc_ptr->name));
 	proc_ptr->va = (char*)-1;
 	ptr->refcount--;
-//	cprintf("not last %s has refcount %d\n",ptr->name,ptr->refcount);
+
 	cur_proc->sz -= PGSIZE;
 	return 0;
 }

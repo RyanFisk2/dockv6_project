@@ -191,12 +191,20 @@ UPROGS=\
 	_nproc_test2\
 	_nproc_test3\
   	_mutex_test1\
+	_mutex_test2\
+	_mutex_test3\
+	_mutex_test4a\
+	_mutex_test4b\
+	_mutex_test5\
+	_mutex_test6\
   	_prio_set_test\
 	_prio_set_test2\
 	_prio_set_test3\
 	_sched_test1\
 	_sched_test2\
 	_mux_shmem_test\
+	_mux_container1\
+	_mux_container2\
 
 fs.img: mkfs README container_config.json nproc_test.json $(UPROGS)
 	./mkfs fs.img README container_config.json nproc_test.json $(UPROGS)

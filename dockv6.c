@@ -53,7 +53,7 @@ main(int argc, char* argv[])
  
                 if(n < 0) 
                 {
-                        printf(1, "Error reading container_config.json\n");
+                        printf(1, "Error reading config file\n");
                         exit();
                 }
 
@@ -105,7 +105,7 @@ main(int argc, char* argv[])
         muxid = mutex_create("cmcomm");
         cv_signal(muxid);
 
-//        while(1);
+
         exit();   
 
 }

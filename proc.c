@@ -47,25 +47,13 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 void
-print_prio_bin(int priority)
-{
-	struct proc *p;
-	cprintf("printing prioqueue[%d]\n",priority);
-	p = pqueue.Arr[priority].head;
-	while (p != (struct proc*)0) {
-		cprintf("pid: %d\n",p->pid);
-		p = p->next;
-	}
-}
-
-void
 pqueue_enqueue(struct proc *p, uint priority)
 {
 	p->priority = priority;
 	acquire(&pqueue.lock);
 	struct list *bin = &pqueue.Arr[priority];
 
-	//cprintf("adding to bin %d\n", priority);
+
 	if (bin->head == (struct proc *)0) {
 		bin->head = bin->tail = p;
 
@@ -182,6 +170,9 @@ found:
 
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		p->shared_mem[i].in_use = 0;
+	}
+	for(int i = 0; i < MUX_MAXNUM; i++){
+		p->mutex[i] = (struct mutex*)0;
 	}
 
 	release(&ptable.lock);
@@ -344,7 +335,7 @@ fork(void)
 		prio_set(pid,1);
 	}
 
-//	prio_set(np->pid,curproc->priority);
+	prio_set(np->pid,curproc->priority);
 
 	acquire(&ptable.lock);
 
@@ -365,29 +356,10 @@ exit(void)
 	struct proc *p;
 	int          fd;
 
-//	cprintf("proc %d exiting\n",curproc->pid);
 
 	if (curproc == initproc) panic("init exiting");
 
-/*
-	acquire(&pqueue.lock);
-	ptr = pqueue.Arr[curproc->priority].head;
-	if (ptr->pid != curproc->pid){
-		while (ptr->next != (struct proc*)0) {
-			if (ptr->next->pid == curproc->pid) {
-				break;
-			}
-			ptr = ptr->next;
-		}
-	} else{
-		pqueue.Arr[curproc->priority].head = pqueue.Arr[curproc->priority].head->next;
-	}
 
-	if (ptr->next != (struct proc*)0) {
-		ptr->next = ptr->next->next;
-	}
-	release(&pqueue.lock);
-*/
 	// Close all open files.
 	for (fd = 0; fd < NOFILE; fd++) {
 		if (curproc->ofile[fd]) {
@@ -400,8 +372,13 @@ exit(void)
 
 	for (int i = 0; i < SHM_MAXNUM; i++) {
 		if (curproc->shared_mem[i].in_use) {
-		//	cprintf("shared page %s in use\n",curproc->shared_mem[i].name);
 			shm_rem(curproc->shared_mem[i].name);
+		}
+	}
+	// Remove access to all mutexes held in the proc struct
+	for(int i = 0; i < MUX_MAXNUM; i++){
+		if(curproc->mutex[i]){
+			mutex_delete(i);
 		}
 	}
 
@@ -436,7 +413,7 @@ wait(void)
 	struct proc *p;
 	int          havekids, pid;
 	struct proc *curproc = myproc();
-//	cprintf("wait -- pid: %d\n",curproc->pid);
+
 	acquire(&ptable.lock);
 	for (;;) {
 		// Scan through table looking for exited children.
@@ -519,60 +496,60 @@ scheduler(void)
 		release(&ptable.lock);
 	}
 }
+/*
+void
+scheduler(void)
+{
+	struct proc *p;
+	struct cpu * c = mycpu();
+	c->proc        = 0;
+	struct list *bin;
 
-// void
-// scheduler(void)
-// {
-// 	struct proc *p;
-// 	struct cpu * c = mycpu();
-// 	c->proc        = 0;
-// 	struct list *bin;
+	for (;;) {
+start:
+		// Enable interrupts on this processor.
+		sti();
 
-// 	for (;;) {
-// start:
-// 		// Enable interrupts on this processor.
-// 		sti();
+		// Loop over process table looking for process to run.
+		acquire(&ptable.lock);
 
-// 		// Loop over process table looking for process to run.
-// 		acquire(&ptable.lock);
-
-// 		for (int i = 0; i < NBIN; i++) {
-// 			bin = &pqueue.Arr[i];
-// 			if (bin->head != (struct proc*)0) {			
+		for (int i = 0; i < NBIN; i++) {
+			bin = &pqueue.Arr[i];
+			if (bin->head != (struct proc*)0) {			
 				
-// 				p = bin->head;
-// 				while (p != (struct proc*)0) {
+				p = bin->head;
+				while (p != (struct proc*)0) {
 
-// 					if (p->state == RUNNABLE) {
-// 				//		cprintf("running %d (prio=%d)\n",p->pid,p->priority);
-// 						for (int j = 0; j < NCPU; j++) {
-// 							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
-// 								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING)) {
-// 									release(&ptable.lock);
-// 									goto start;
-// 								}						
-// 							}
-// 						}
-// //						cprintf("running %d\n",p->pid);
-// 						c->proc = p;
-// 						i = 0;
-// 						switchuvm(p);
-// 						p->state = RUNNING;
+					if (p->state == RUNNABLE) {
+				
+						for (int j = 0; j < NCPU; j++) {
+							if(cpus[j].proc != 0 && (&cpus[j] != c)) {
+								if ((cpus[j].proc->priority < p->priority) && (cpus[j].proc->state == RUNNING)) {
+									release(&ptable.lock);
+									goto start;
+								}						
+							}
+						}
 
-// 						swtch(&(c->scheduler),p->context);
+						c->proc = p;
+						i = 0;
+						switchuvm(p);
+						p->state = RUNNING;
+
+						swtch(&(c->scheduler),p->context);
 						
-// 						switchkvm();
-// 						c->proc = 0;				
-// 					}
+						switchkvm();
+						c->proc = 0;				
+					}
 					
-// 					p = p->next;
-// 				}
-// 			}
-// 		}
-// 		release(&ptable.lock);
-// 	}
-// }
-
+					p = p->next;
+				}
+			}
+		}
+		release(&ptable.lock);
+	}
+}
+*/
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
@@ -695,6 +672,34 @@ kill(int pid)
 	for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 		if ((p->pid == pid) && (p->container_id == curproc -> container_id)) {
 			p->killed = 1;
+			/*
+			 * If kill() has been called on a process, we need to check to make sure that it no longer has access
+			 * to any of its mutexes, along with checking for status of that process. If it is being blocked in cv_wait, we must make it pass through 
+			 * by setting the condition variable to 1, then setting the state to runnable. We also delete all access to any other mutexes. 
+			*/
+			acquire(&mtable.lock);
+			struct mutex *mux;
+			for(int i = 0; i < MUX_MAXNUM; i++){
+				mux = p->mutex[i];
+				if(mux){
+					if (p->state == SLEEPING && p->chan == mux) {
+						cas((unsigned long*)&(mux->cv),0, 1);
+					}
+					if(mux->refcount == 1){
+						mux->isAlloc = 0;
+						mux->refcount = 0;
+						mux->locked = 0;
+						mux->cv = 0;
+						strncpy(mux->name, "", strlen(""));
+						mux->container_id = 0;
+					}else{
+						mux->locked = 0;
+						mux->refcount--;
+					}
+				}	
+			}
+			release(&mtable.lock);
+
 			// Wake process from sleep if necessary.
 			if (p->state == SLEEPING) p->state = RUNNABLE;
 			release(&ptable.lock);
@@ -759,7 +764,7 @@ cm_create_and_enter(char *init, char *fs, int nproc)
 			if (c->container_id == -1) goto found;
 		}
 	release(&containers.lock);
-	cprintf("oh no\n");
+
 	return -1;
 
 found:
@@ -772,9 +777,6 @@ found:
 	curproc -> container = c;
 
 	//set root for container
-//	cprintf("proc %d running create_and_enter\n",curproc->pid);	
-	
-//	cprintf("proc %d running create_and_enter\n",curproc->pid);
 	begin_op();
 	cm_setroot(fs,strlen(fs),c);
 	curproc->cwd = idup(c->root);
@@ -842,7 +844,7 @@ cm_setroot(char* path, int path_len, struct container *container)
 
 /*
  * Go through mtable. Save the first unallocated mutex, so long as we do not
- * find one with the same name as *name, from the same container. If we find one with the same name&container,
+ * find one with the same name as *name from the same container. If we find one with the same name&container,
  * goto addtoProc, as all we need to do is give our current process access, and return its muxid.
  * Otherwise, we need to set up a new mutex with the 'unallocated' variable
  */
@@ -870,6 +872,7 @@ int mutex_create(char *name){
 		goto setupMutex;
 	}
 
+
 	// We didn't have space to make another lock, so return -1.
 	release(&mtable.lock);
 	return -1;
@@ -880,6 +883,7 @@ addtoProc:
 		if(p->mutex[i] == (struct mutex*)0 && muxid == -1){
 			muxid = i;
 		}else if(p->mutex[i] == m){
+
 			release(&mtable.lock);
 			return -1;
 		}
@@ -891,17 +895,20 @@ addtoProc:
 		release(&mtable.lock);
 		return muxid;
 	}else{
+
 		release(&mtable.lock);
 		return -1;
 	}
 	
 setupMutex:
+	// General setup code for a new mutex
 	unallocated->isAlloc = 1;
 	strncpy(unallocated->name,name,strlen(name));
 	unallocated->refcount = 1;
 	unallocated->container_id = p->container_id;
 	unallocated->cv = 0;
 
+	// Find the first available location in the proc struct
 	for(int i = 0; i < MUX_MAXNUM; i++){
 		if(p->mutex[i] == (struct mutex*)0){
 			muxid = i;
@@ -915,21 +922,28 @@ setupMutex:
 		release(&mtable.lock);
 		return muxid;
 	}else{
+
 		release(&mtable.lock);
 		return -1;
 	}
 
-		
 	return muxid;
 }
 
+/*
+ * Returns 1 if the mutex is locked by the current process, otherwise 0. Takes a mutex pointer.
+*/
 int
 mutex_holding(struct mutex *mux)
 {
-	// returns 1 if the mutex is locked by the current process, otherwise 0
 	return mux->locked && mux->pid == myproc()->pid;
 }
 
+/*
+ * First, check if that mutex id corresponds to a valid mutex. If it does, remove that process' access to the mutex.
+ * Then, if that process was the only reference to that mutex, delete it so that space may be used later for a new mutex.
+ * Otherwise, unlock the mutex if it was holding it and decrease the refcount. 
+*/
 void mutex_delete(int muxid){
 	struct proc *curr_proc = myproc();
 	struct mutex *m = curr_proc->mutex[muxid];
@@ -943,20 +957,27 @@ void mutex_delete(int muxid){
 			m->refcount = 0;
 			strncpy(m->name,"",strlen(""));
 			m->container_id = 0;
+			m->locked = 0;
 			release(&mtable.lock);
 			return;
 		}
 	}else{
 		release(&mtable.lock);
+
 		return; /* curproc doesn't have access to lock */
 	}
-
-	m->locked = 0;
+	if(mutex_holding(m)){
+		m->locked = 0;
+	}
 	m->refcount--;
 	release(&mtable.lock);
 	return;
 }
 
+/*
+ * If the passed in mutex is valid and held by the current process, unlock it and wakeup all other processes sleeping on chan "mux"
+ * Otherwise, return nothing.
+*/
 void mutex_unlock(int muxid){
 	struct proc *curr_proc = myproc();
 	struct mutex *mux = curr_proc->mutex[muxid];
@@ -968,10 +989,16 @@ void mutex_unlock(int muxid){
 		wakeup(mux);
 		return;
 	}else{
+
 		release(&mtable.lock);
 		return;
 	}
 }
+
+/*
+ * If the process passes in a valid mutex and isn't already holding it, try to take it. If unable, sleep on chan "mux".
+ * Once able, take the lock and set the pid of the lock to the current process, then return.
+*/
 
 void mutex_lock(int muxid){
 	struct proc *curr_proc = myproc();
@@ -980,6 +1007,7 @@ void mutex_lock(int muxid){
 	
 	/* if process doesn't have access to mutex (i.e. curr_proc->mutex[muxid]==0) or already owns the lock, return */
 	if(!mux || mutex_holding(mux)) {
+
 		return;
 	}
 
@@ -994,10 +1022,16 @@ void mutex_lock(int muxid){
 	return;
 }
 
+/*
+ * If the process passes in a valid mutex that it is holding, unlock the mutex and try to change the condition variable from 1 to 0. 
+ * If it fails, sleep the process on chan "mux" to try again later.
+ * On success, relock the mutex, and return. 
+*/
+
 void cv_wait(int muxid){
 	struct proc *curr_proc = myproc();
 	struct mutex *mux = curr_proc->mutex[muxid];
-	if(mutex_holding(mux)){
+	if(mux && mutex_holding(mux)){
 
 		mutex_unlock(muxid);
 		//Maybe add a condition variable that gets changed on wakeup(muxid)? Maybe just continue with code. 
@@ -1013,10 +1047,17 @@ void cv_wait(int muxid){
 		
 		mutex_lock(muxid);
 	} else{
-		cprintf("Must hold lock to sleep on condition variable\n");
+
 	}
 	return;
 }
+
+/*
+ * If the process passes in a valid mutex, try to set the condition variable to 1 if it is 0. 
+ * On fail, wakeup all processes sleeping on "mux", as a process is waiting to be signaled.
+ * On sucess, change the condition variable to 1, wakeup all processes sleeping on "mux", and return. 
+*/
+
 void cv_signal(int muxid){
 	struct mutex *mux = myproc()->mutex[muxid];
 	int done = 0;
@@ -1031,8 +1072,6 @@ void cv_signal(int muxid){
 			release(&mtable.lock);
 			wakeup(mux);
 		}
-	}else{
-		cprintf("mux null or mux == 0");
 	}
 
 	return;

@@ -190,7 +190,6 @@ main(void)
 			wait();
 		}
 
-	//	wait();
 	}
 	exit();
 }
