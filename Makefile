@@ -174,9 +174,41 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
+	_dockv6\
+	_dockv6_init\
+	_shmem_testp1\
+	_shmem_testp2\
+	_shmem2_p1\
+	_shmem2_p2\
+	_shmem3\
+	_shmem_test4\
+	_shmem_test5\
+	_dockv6\
+	_cm\
+	_HelloWorld\
+	_nproc_test0\
+	_nproc_test1\
+	_nproc_test2\
+	_nproc_test3\
+  	_mutex_test1\
+	_mutex_test2\
+	_mutex_test3\
+	_mutex_test4a\
+	_mutex_test4b\
+	_mutex_test5\
+	_mutex_test6\
+  	_prio_set_test\
+	_prio_set_test2\
+	_prio_set_test3\
+	_sched_test1\
+	_sched_test2\
+	_mux_shmem_test\
+	_mux_container1\
+	_mux_container2\
 
-fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+fs.img: mkfs README container_config.json nproc_test.json $(UPROGS)
+	./mkfs fs.img README container_config.json nproc_test.json $(UPROGS)
+	
 
 -include *.d
 
@@ -189,7 +221,7 @@ clean:
 
 # make a printout
 FILES = $(shell grep -v '^\#' runoff.list)
-PRINT = runoff.list runoff.spec README toc.hdr toc.ftr $(FILES)
+PRINT = runoff.list runoff.spec README container_config.json toc.hdr toc.ftr $(FILES)
 
 xv6.pdf: $(PRINT)
 	./runoff
@@ -244,7 +276,7 @@ EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
-	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+	README container_config.json nproc_test.json dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
 dist:

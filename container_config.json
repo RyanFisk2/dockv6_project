@@ -1,0 +1,5 @@
+{
+        "init": "/sh",
+        "fs": "/container/",
+        "nproc": 10
+}

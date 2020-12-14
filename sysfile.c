@@ -144,6 +144,7 @@ sys_link(void)
 	return 0;
 
 bad:
+	cprintf("went to bad :(\n");
 	ilock(ip);
 	ip->nlink--;
 	iupdate(ip);
@@ -346,13 +347,24 @@ sys_chdir(void)
 {
 	char *        path;
 	struct inode *ip;
-	struct proc * curproc = myproc();
+	struct proc *curproc = myproc();
 
 	begin_op();
 	if (argstr(0, &path) < 0 || (ip = namei(path)) == 0) {
 		end_op();
 		return -1;
 	}
+
+	/*
+	 * If in a container, cannot use cd .. to escape
+	 * 
+	 * TODO: fix this such that we can navigate directories within the container
+	 */
+	
+	if (curproc->container_id > 0 && strncmp(path, "..", strlen(path)) == 0) {
+		path = ".";
+	}
+
 	ilock(ip);
 	if (ip->type != T_DIR) {
 		iunlockput(ip);
@@ -408,4 +420,42 @@ sys_pipe(void)
 	fd[0] = fd0;
 	fd[1] = fd1;
 	return 0;
+}
+
+int
+sys_cm_setroot(void)
+{
+	char* path;
+	int path_len, result;
+	struct proc *p = myproc();
+
+	begin_op();
+
+	if((argstr(0, &path) < 0) || (argint(1, &path_len) < 0))
+	{
+		return -1;
+	}
+
+	result = cm_setroot(path, path_len, p->container);
+
+	end_op();
+
+	return result;
+}
+
+int
+sys_copy_file(void)
+{
+	char *dir_path;
+	char *file;
+
+	if((argstr(0, &dir_path) < 0) || (argstr(1, &file) < 0)) return 0;
+
+	begin_op();
+	
+	int result = copy_file(dir_path, file);
+
+	end_op();
+
+	return result;
 }
