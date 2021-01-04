@@ -10,11 +10,14 @@
 int
 main()
 {
+        printf(1, "TEST THAT WE CANNOT SET NPROC IF ALREADY SET\n");
         if(cm_maxproc(8) != -1)
         {
                 printf(1, "ERR: set nproc from inside the container\n");
                 exit();
         }
+
+        printf(1, "nproc_test1 CORRECTLY RETURNED ERROR\n");
 
         exit();
 

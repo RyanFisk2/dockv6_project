@@ -109,6 +109,7 @@ extern int sys_mutex_lock(void);
 extern int sys_mutex_unlock(void);
 extern int sys_cv_wait(void);
 extern int sys_cv_signal(void);
+extern int sys_prio_set(void);
 
 static int (*syscalls[])(void) = {
   [SYS_fork] sys_fork,   [SYS_exit] sys_exit,     [SYS_wait] sys_wait,     [SYS_pipe] sys_pipe,
@@ -119,7 +120,7 @@ static int (*syscalls[])(void) = {
   [SYS_close] sys_close, [SYS_m_get] sys_m_get, [SYS_m_rem] sys_m_rem, [SYS_cm_create_and_enter] sys_cm_create_and_enter, 
   [SYS_cm_setroot] sys_cm_setroot, [SYS_cm_maxproc] sys_cm_maxproc, [SYS_copy_file] sys_copy_file, [SYS_mutex_create] sys_mutex_create, 
   [SYS_mutex_delete] sys_mutex_delete,[SYS_mutex_lock] sys_mutex_lock, [SYS_mutex_unlock] sys_mutex_unlock, [SYS_cv_wait] sys_cv_wait, 
-  [SYS_cv_signal] sys_cv_signal
+  [SYS_cv_signal] sys_cv_signal, [SYS_prio_set] sys_prio_set,
 };
 
 void

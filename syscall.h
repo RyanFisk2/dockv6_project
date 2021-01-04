@@ -32,3 +32,4 @@
 #define SYS_mutex_unlock 31
 #define SYS_cv_wait 32
 #define SYS_cv_signal 33
+#define SYS_prio_set 34

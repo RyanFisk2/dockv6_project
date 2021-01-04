@@ -364,11 +364,10 @@ copyuvm(pde_t *pgdir, uint sz)
 			if ((mem = kalloc()) == 0) goto bad;
 			memmove(mem, (char *)P2V(pa), PGSIZE);
 			if (mappages(d, (void *)i, PGSIZE, V2P(mem), flags) < 0) goto bad;
-		} else{
+		} else if (strncmp(curproc->name,"cm",strlen(curproc->name)) != 0){
 			mappages(d,(void*)va,PGSIZE,pa,flags);
 			is_shmem = 0;
 		}
-
 	}
 /*
 	for (i = 0; i < SHM_MAXNUM; i++) {
@@ -442,6 +441,7 @@ shm_get(char *name)
 	uint found = 0;
 	uint pa;
 
+
 	ret_val = p->sz; /* shmem starting addr will b last address in VAS before page is mapped */
 	
 	// Tracks the first available spot in shm_list for a new page of shared memory 
@@ -459,7 +459,7 @@ shm_get(char *name)
 			new_shmem = &p->shared_mem[i];
 		}
 //		if (strncmp(cur_name,(char*)0,sizeof((char*)0)) == 0) new_shmem = &p->shared_mem[i];
-		if (strncmp(cur_name,name,strlen(name)) == 0) {cprintf("already have this page\n"); return -1;} /* proc already holds shmem */
+		if (strncmp(cur_name,name,strlen(name)) == 0) return -1; /* proc already holds shmem */
 	}
 
 //	if (new_shmem == (struct shmem*)0) return -1; /* proc at SHM_MAXNUM shmem pages */
@@ -479,7 +479,7 @@ shm_get(char *name)
 		}
 		
 		if (strncmp(ptr->name, name, strlen(name)) == 0 && ptr->container_id == p->container_id) {
-			cprintf("found %s\n",ptr->name);
+
 			found = 1;
 			break;
 		}
@@ -493,10 +493,13 @@ shm_get(char *name)
 	if(found) {
 		a = PGROUNDUP(p->sz);
 		pgdir = p->pgdir;
+
+		
 		if (mappages(pgdir,(char*)a,PGSIZE,ptr->pa,PTE_W | PTE_U) < 0) {
 			cprintf("shmem out of memory\n");
 			return -1;
 		}
+
 	}else{
 		/* 
 		 * This is creating a new page of shared memory, 
@@ -505,6 +508,7 @@ shm_get(char *name)
 		if (!free_ptr.set) {
 			return -1; /* already at SHM_MAXNUM pages */
 		}
+
 		ptr = free_ptr.ptr;
 		ptr->in_use = 1;
 		
@@ -516,12 +520,17 @@ shm_get(char *name)
 			cprintf("shmem out of memory\n");
 			return -1;
 		}
+
 		memset(mem, 0, PGSIZE);
+
+
 		if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
+			panic("mem");
 			cprintf("shmem out of memory (2)\n");
 			kfree(mem);
 			return -1;
 		}
+
 		pa = V2P(mem);
 
 		acquire(&shm_list.lock);
@@ -537,10 +546,12 @@ shm_get(char *name)
 	new_shmem->va = (char*)ret_val;
 	new_shmem->global_ptr = ptr;
 	new_shmem->in_use = 1;
-
+	acquire(&shm_list.lock);
 	ptr->refcount++;
-	cprintf("proc %d got %s refcount=%d\n",myproc()->pid,name,ptr->refcount);
+	
+		
 	ptr->container_id = p->container_id;
+	release(&shm_list.lock);
 
 	return ret_val;
 }
@@ -555,7 +566,7 @@ shm_rem(char *name)
 
 	acquire(&shm_list.lock);
 	for (ptr = shm_list.list; ptr < &shm_list.list[SHM_MAXNUM]; ptr++) {
-		if (strncmp(ptr->name, name, strlen(name)) == 0) {
+		if (strncmp(ptr->name, name, strlen(name)) == 0 && ptr->container_id == cur_proc->container_id) {
 			goto found_page;
 		}
 	}
@@ -592,7 +603,7 @@ found_page:
 		proc_ptr->va = (char*)-1;
 		cur_proc->sz -= PGSIZE;
 
-		cprintf("%s has refcount %d\n",ptr->name,ptr->refcount);
+
 		strncpy(ptr->name,"",strlen(ptr->name));
 		return 0;
 	}
@@ -602,7 +613,7 @@ found_page:
 	strncpy(proc_ptr->name,"",strlen(proc_ptr->name));
 	proc_ptr->va = (char*)-1;
 	ptr->refcount--;
-	cprintf("%s has refcount %d\n",ptr->name,ptr->refcount);
+
 	cur_proc->sz -= PGSIZE;
 	return 0;
 }

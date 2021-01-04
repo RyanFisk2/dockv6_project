@@ -362,7 +362,7 @@ sys_chdir(void)
 	 */
 	
 	if (curproc->container_id > 0 && strncmp(path, "..", strlen(path)) == 0) {
-		return -1;
+		path = ".";
 	}
 
 	ilock(ip);

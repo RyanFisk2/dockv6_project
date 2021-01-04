@@ -13,10 +13,15 @@ create_and_enter(char *init, char* fs, int nproc)
 {
         char *argv[] = {"", 0};
         int child = cm_create_and_enter(init, fs, nproc);
-
-        if(child) exec(init, argv);
         
-        exit();
+        if(!(child)){
+                exec(init, argv);
+                exit();
+        }else{
+                wait();
+        } 
+        
+        return;
 }
 
 /*
@@ -32,20 +37,24 @@ main ()
         printf(1, "Starting CM....\n");
 
         char init[16], fs[16];
-        int nproc;
-
-
+        int nproc, muxid;
+        muxid = mutex_create("cmcomm");
         char *shmem_addr = shm_get("dockv6");
-        strcpy(init,shmem_addr);
 
-        shmem_addr += strlen(init)+sizeof(char);
-        strcpy(fs,shmem_addr);
+        while(1){
+                mutex_lock(muxid);
+                cv_wait(muxid);
+                mutex_unlock(muxid);
+                strcpy(init,shmem_addr);
 
-        shmem_addr += strlen(fs)+sizeof(char);
-        nproc = *shmem_addr;
+                shmem_addr += strlen(init)+sizeof(char);
+                strcpy(fs,shmem_addr);
 
-        create_and_enter(init, fs, nproc);
+                shmem_addr += strlen(fs)+sizeof(char);
+                nproc = *shmem_addr;
 
-        while(1);
+                create_and_enter(init, fs, nproc);
+        }
+
         exit();
 }

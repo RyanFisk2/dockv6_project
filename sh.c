@@ -4,6 +4,7 @@
 #include "user.h"
 #include "fcntl.h"
 
+
 // Parsed command representation
 #define EXEC 1
 #define REDIR 2
@@ -119,7 +120,9 @@ runcmd(struct cmd *cmd)
 
 	case BACK:
 		bcmd = (struct backcmd *)cmd;
-		if (fork1() == 0) runcmd(bcmd->cmd);
+		if (fork1() == 0) {
+			runcmd(bcmd->cmd);
+		}
 		break;
 	}
 	exit();
@@ -140,8 +143,7 @@ int
 main(void)
 {
 	static char buf[100];
-	int         fd;
-
+	int         fd, muxid;
 	// Ensure that three file descriptors are open.
 	while ((fd = open("console", O_RDWR)) >= 0) {
 		if (fd >= 3) {
@@ -158,8 +160,36 @@ main(void)
 			if (chdir(buf + 3) < 0) printf(2, "cannot cd %s\n", buf + 3);
 			continue;
 		}
-		if (fork1() == 0) runcmd(parsecmd(buf));
-		wait();
+		
+		
+		char main_name[14];
+
+		for (int i = 0; i < 14; i++) {
+			main_name[i] = buf[i];
+		}
+
+		main_name[13] = '\0';
+		
+
+		if (fork1() == 0) {
+			runcmd(parsecmd(buf));
+		} else if (strcmp(main_name,"dockv6 create") == 0) {
+			wait();
+			char *shm = shm_get("dockv6");
+			char cm_initproc[16];
+			strcpy(cm_initproc,shm);
+
+			if (strcmp(cm_initproc,"/sh") == 0) {
+
+				muxid = mutex_create("shellmux");
+				mutex_lock(muxid);
+				cv_wait(muxid);
+				mutex_unlock(muxid);
+			}
+		} else{
+			wait();
+		}
+
 	}
 	exit();
 }
